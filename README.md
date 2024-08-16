@@ -1,5 +1,5 @@
 # jwstspec
-A generalized pipeline for customized end-to-end processing and spectral extraction of JWST spectroscopic data 
+A generalized pipeline for customized end-to-end processing and spectral extraction of JWST spectroscopic data. This code works for all observations obtained with the NIRSpec integral field unit, NIRSpec fixed slit, MIRI MRS, and MRS LRS slit and slitless modes.
 
 (Under construction...)
 
