@@ -19,7 +19,7 @@ tso_observation = False 	# Time-series observation
 ## ============ Directory settings ============
 dwnld_dir  = '/Users/iwong/Downloads/JWSTData/'								# User-set staging area for MAST downloads
 data_dir   = '/Users/iwong/Documents/Astro/STScI/pipeline_testing/data/'	# Top-level directory for stored data and outputs
-redownload = True			# If True, redownload data from MAST
+download   = True			# If True, download data from MAST
 dwnld_all  = False			# If True, download all available data products. If False, only uncals are downloaded
 ## ========== Pipeline run settings ===========
 readnoise_correct = False	# If True, correct for 1/f detector readnoise in NIRSpec data
@@ -83,7 +83,7 @@ params.stage3_rules['extract_1d'] = {'override_apcorr' : '/Users/iwong/Documents
 ## ============================================
 
 # Populate parameter values and do sanity checks
-params.add_params(prog_id, obs_numb, bkg_obs_numb, instrument, obs_type, tso_observation, dwnld_dir, data_dir, redownload, dwnld_all,
+params.add_params(prog_id, obs_numb, bkg_obs_numb, instrument, obs_type, tso_observation, dwnld_dir, data_dir, download, dwnld_all,
 			readnoise_correct, destriping, bkg_subtract, cube_align, stage2_suffix, stage3_suffix, extract_stage, extr_method, extr_suffix, extr_aper_rad,
 			bkg_aper_in, bkg_aper_out, window_width, pix_sig_clip, bkg_sig_clip, fix_centroid, save_cleaned, spec_bkg_sub, spec_sig_clip, spec_window_half, special_defringe)
 

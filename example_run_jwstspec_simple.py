@@ -21,8 +21,8 @@ params.tso_observation = False 	# Time-series observation
 ## ============ Directory settings ============
 params.dwnld_dir  = '/Users/iwong/Downloads/JWSTData/'								# User-set staging area for MAST downloads
 params.data_dir   = '/Users/iwong/Documents/Astro/STScI/pipeline_testing/data/'	# Top-level directory for stored data and outputs
-params.redownload = True			# If True, redownload data from MAST
-params.dwnld_all  = False			# If True, download all available data products. If False, only uncals are downloaded
+params.download   = True		# If True, download data from MAST
+params.dwnld_all  = False		# If True, download all available data products. If False, only uncals are downloaded
 ## ========== Pipeline run settings ===========
 params.bkg_subtract = None		# Dedicated background subtraction (None or 'pixel' or 'asn')
 params.stage2_suffix = '_test0'	# Ending of Stage 2 file directory, used to distinguish between different data processing versions
