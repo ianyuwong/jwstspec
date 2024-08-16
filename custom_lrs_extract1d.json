@@ -1,0 +1,37 @@
+{
+    "reftype": "EXTRACT1D",
+    "instrument": "MIRI",
+    "telescope": "JWST",
+    "exp_type": "MIR_LRS-FIXEDSLIT|MIR_LRS-SLITLESS",
+    "pedigree": "CUSTOM",
+    "description": "MIRI LRS extraction params for in-flight data",
+    "author": "I.Wong",
+    "history": "2023-Apr-14",
+    "useafter": "2022-01-01T00:00:00",
+    "apertures": [
+
+        {
+        "id": "MIR_LRS-FIXEDSLIT",
+        "region_type": "target",
+	"bkg_fit": "poly",
+        "bkg_order": 1,
+        "dispaxis": 2,
+        "xstart": 27,
+        "xstop": 34,
+	"bkg_coeff" : [[5.5],[15.5],[45.5],[55.5]],
+        "use_source_posn": false
+        },
+
+        {
+        "id": "MIR_LRS-SLITLESS",
+        "region_type": "target",
+	"bkg_fit": "poly",
+        "bkg_order": 1,
+        "dispaxis": 2,
+        "xstart": 30,
+        "xstop": 41,
+	"bkg_coeff" : [[12.5],[17.5],[53.5],[58.5]],
+        "use_source_posn": false
+        }
+    ]
+}
