@@ -3,6 +3,10 @@ __pycache__/
 *.py[cod]
 *$py.class
 
+# Run scripts
+run_jwstspec.py
+run_jwstspec_simple.py
+
 # C extensions
 *.so
 
