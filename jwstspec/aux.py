@@ -984,7 +984,7 @@ class params(object):
 		self.stage3_rules = {}
 
 	def add_params(self, prog_id, obs_numb, bkg_obs_numb, instrument, obs_type, tso_observation, dwnld_dir, data_dir, download, dwnld_all,
-					readnoise_correct, destriping, bkg_subtract, cube_align, stage2_suffix, stage3_suffix, extract_stage, extr_method, extr_suffix, extr_aper_rad,
+					readnoise_correct, bkg_subtract, cube_align, stage2_suffix, stage3_suffix, extract_stage, extr_method, extr_suffix, extr_aper_rad,
 					bkg_aper_in, bkg_aper_out, window_width, pix_sig_clip, bkg_sig_clip, fix_centroid, save_cleaned, spec_bkg_sub, spec_sig_clip, spec_window_half, special_defringe):
 		'''
 		Add parameters. See run_jwstspec.py file for parameter definitions.
@@ -1001,7 +1001,6 @@ class params(object):
 		self.download = download
 		self.dwnld_all = dwnld_all
 		self.readnoise_correct = readnoise_correct
-		self.destriping = destriping
 		self.bkg_subtract = bkg_subtract
 		self.cube_align = cube_align
 		self.stage2_suffix = stage2_suffix
@@ -1025,25 +1024,26 @@ class params(object):
 		# Run sanity check on parameters
 		self.sanity_check()
 
-		# Define affix for different data types and custom destriping methods
-		vers = ''
-		if self.tso_observation:
-			vers += 'ints'
-		if self.readnoise_correct:
-			if self.destriping == 'nsclean':
-				vers += 'corr0'
-			elif self.destriping == 'constant':
-				vers += 'corr1' 
-			elif self.destriping == 'moving_median':
-				vers += 'corr2'
-		if self.bkg_subtract in ['pixel', 'asn']:
-			vers += f'-subbkg_{self.bkg_subtract}'
-		self.vers = vers
 
 	def sanity_check(self):
 		'''
 		Do a quick check to make sure parameter settings aren't conflicting or unreasonable
 		'''
+
+		# Define affix for different data types and custom destriping methods
+		vers = ''
+		if self.tso_observation:
+			vers += 'ints'
+		if self.instrument == 'nirspec' and hasattr(params, 'readnoise_correct'):
+			if self.readnoise_correct == 'nsclean':
+				vers += 'corr0'
+			elif self.readnoise_correct == 'constant':
+				vers += 'corr1' 
+			elif self.readnoise_correct == 'moving_median':
+				vers += 'corr2'
+		if self.bkg_subtract in ['pixel', 'asn']:
+			vers += f'-subbkg_{self.bkg_subtract}'
+		self.vers = vers
 
 		# Check instrument and observation type settings
 		if self.instrument not in ['nirspec', 'miri'] or self.obs_type not in ['ifu', 'slit', 'slitless']:
@@ -1051,7 +1051,7 @@ class params(object):
 
 		# Check destriping method
 		if self.instrument == 'nirspec':
-			if self.destriping not in [None, 'nsclean', 'constant', 'moving_median']:
+			if self.readnoise_correct not in [None, 'nsclean', 'constant', 'moving_median']:
 				raise ValueError(f'Destriping method {self.destriping} not recognized.')
 
 		# MIRI LRS slitless observations shohuld always be TSOs

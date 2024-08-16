@@ -18,7 +18,7 @@ def run(params):
 
 	# Run for both science and (if needed) background observations
 	obs = [params.obs_numb]
-	if params.bkg_obs_numb is not None:
+	if params.bkg_obs_numb is not None and params.bkg_obs_numb != params.obs_numb:
 		obs.append(params.bkg_obs_numb)
 
 	for oo in obs:
@@ -28,21 +28,21 @@ def run(params):
 		if nfiles == 0:
 			raise Warning('ERROR: no rate files found in Stage1 directory!')
 
-		print(f'Stage 1: Running 1/f detector readnoise correction on {nfiles} files  from Obs{oo} using {params.destriping} method...')
+		print(f'Stage 1: Running 1/f detector readnoise correction on {nfiles} files  from Obs{oo} using {params.readnoise_correct} method...')
 
 		# Separate affix for different destriping methods
-		if params.destriping == 'nsclean':
+		if params.readnoise_correct == 'nsclean':
 			vers = '0'
-		elif params.destriping == 'constant':
+		elif params.readnoise_correct == 'constant':
 			vers = '1' 
-		elif params.destriping == 'moving_median':
+		elif params.readnoise_correct == 'moving_median':
 			vers = '2'
 
 		for i,fi in enumerate(input_files):
 			print(f'Destriping {fi.split("/")[-1]} ({i+1}/{nfiles})...')
 
 			# For NSClean, run the files through the first three steps of the calwebb_spec2 pipeline module and save outputs
-			if params.destriping == 'nsclean':
+			if params.readnoise_correct == 'nsclean':
 				import os
 				current_dir = os.path.dirname(__file__)
 				cfg_file = os.path.join(current_dir, 'log.cfg')
@@ -85,15 +85,15 @@ def run(params):
 				# Mask out on-sky pixels and remove stripes
 				img = np.ma.MaskedArray(data, mask=full_mask)
 				clipped = sigma_clip(img, axis=0, sigma=3.0, maxiters=None)
-				if params.destriping == 'constant':
+				if params.readnoise_correct == 'constant':
 					stripes = np.array([np.ma.median(clipped, axis=0),]*img.shape[0])
-				elif params.destriping == 'moving_median':
+				elif params.readnoise_correct == 'moving_median':
 					import numbamisc
 					stripes = numbamisc.median_filter(clipped,np.ones([201,1]))
 
 				# Remove noise model and save as new file
 				hdul['SCI',1].data = data - stripes
-				hdul['PRIMARY',1].header['HISTORY'] = f'Readnoise correction carried out with S1_noise_correct.py using {params.destriping} method'
+				hdul['PRIMARY',1].header['HISTORY'] = f'Readnoise correction carried out with S1_noise_correct.py using {params.readnoise_correct} method'
 				hdul.writeto(fi.replace(f'_rate',f'_ratecorr{vers}'), overwrite=True)
 				hdul.close()
 

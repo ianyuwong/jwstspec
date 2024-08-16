@@ -17,23 +17,17 @@ def run(params):
 		affix = 's3d'
 	elif params.obs_type == 'slit':
 		affix = 's2d'
-	dir_add = ''
-	if params.cube_align != False:
-		dir_add += cube_align
 
 	if params.extract_stage == 'Stage2':			
 		if len(params.vers) > 0:
-			input_files = sorted(glob(f'{params.data_dir}{params.prog_id}/Obs{params.obs_numb}/Stage2{dir_add}{params.stage2_suffix}/*rate{params.vers}_{affix}.fits'))
+			input_files = sorted(glob(f'{params.data_dir}{params.prog_id}/Obs{params.obs_numb}/Stage2{params.stage2_suffix}/*rate{params.vers}_{affix}.fits'))
 		else:
 			if params.instrument == 'nirspec':
-				input_files = sorted(glob(f'{params.data_dir}{params.prog_id}/Obs{params.obs_numb}/Stage2{dir_add}{params.stage2_suffix}/*nrs?_{affix}.fits'))
+				input_files = sorted(glob(f'{params.data_dir}{params.prog_id}/Obs{params.obs_numb}/Stage2{params.stage2_suffix}/*nrs?_{affix}.fits'))
 			elif params.instrument == 'miri':
-				input_files = sorted(glob(f'{params.data_dir}{params.prog_id}/Obs{params.obs_numb}/Stage2{dir_add}{params.stage2_suffix}/*[n,r,g][g,t,e]_{affix}.fits'))
+				input_files = sorted(glob(f'{params.data_dir}{params.prog_id}/Obs{params.obs_numb}/Stage2{params.stage2_suffix}/*[n,r,g][g,t,e]_{affix}.fits'))
 	elif params.extract_stage == 'Stage3':
-		vers = ''
-		if params.bkg_subtract == 'cube':
-			vers += '-subbkg_cube'
-		input_files = sorted(glob(f'{params.data_dir}{params.prog_id}/Obs{params.obs_numb}/Stage3{dir_add}{params.stage3_suffix}/*{vers}_{affix}.fits'))
+		input_files = sorted(glob(f'{params.data_dir}{params.prog_id}/Obs{params.obs_numb}/Stage3{params.stage3_suffix}/*_{affix}.fits'))
 	nfiles = len(input_files)
 
 	print(f'Stage 3: Extracting spectra from {nfiles} files...')

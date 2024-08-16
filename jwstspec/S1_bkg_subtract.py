@@ -30,12 +30,12 @@ def run(params):
 	vers = ''
 	if params.tso_observation:
 		vers += 'ints'
-	if params.readnoise_correct:
-		if params.destriping == 'nsclean':
+	if hasattr(params, 'readnoise_correct'):
+		if params.readnoise_correct == 'nsclean':
 			vers = 'corr0'
-		elif params.destriping == 'constant':
+		elif params.readnoise_correct == 'constant':
 			vers = 'corr1' 
-		elif params.destriping == 'moving_median':
+		elif params.readnoise_correct == 'moving_median':
 			vers = 'corr2'
 	sci_files = sorted(glob(f'{sci_dir}*_rate{vers}.fits'))
 	bkg_files = sorted(glob(f'{bkg_dir}*_rate{vers}.fits'))
@@ -64,9 +64,9 @@ def run(params):
 	sci_groups = [np.zeros(0).astype('str'), ] * ncomb
 	bkg_groups = [np.zeros(0).astype('str'), ] * ncomb
 
-	# For 'asn' method, check to see if GWA tilt values are close
-	if params.bkg_subtract == 'asn' and params.instrument == 'nirspec':
-		# Collect grating wheel assembly tilt values
+	# Populate groups
+	if params.bkg_subtract == 'asn':
+		# Collect grating wheel assembly tilt values (for NIRSpec)
 		sci_gwa_xtil = np.zeros(ncomb)		
 		sci_gwa_ytil = np.zeros(ncomb)
 		bkg_gwa_xtil = np.zeros(ncomb)		
@@ -76,26 +76,29 @@ def run(params):
 			band, detector = header_sci[key], header_sci['DETECTOR']
 			w = np.where((bands == band) & (detectors == detector))[0][0]
 			sci_groups[w] = np.append(sci_groups[w],fi)
-			sci_gwa_xtil[w] = header_sci['GWA_XTIL']
-			sci_gwa_ytil[w] = header_sci['GWA_YTIL']
+			if params.instrument == 'nirspec':
+				sci_gwa_xtil[w] = header_sci['GWA_XTIL']
+				sci_gwa_ytil[w] = header_sci['GWA_YTIL']
 		for fi in bkg_files:
 			header_bkg = fits.getheader(fi, 'PRIMARY')
 			band, detector = header_bkg[key], header_bkg['DETECTOR']
 			w = np.where((bands == band) & (detectors == detector))[0][0]
 			bkg_groups[w] = np.append(bkg_groups[w],fi)
-			bkg_gwa_xtil[w] = header_bkg['GWA_XTIL']
-			bkg_gwa_ytil[w] = header_bkg['GWA_YTIL']
+			if params.instrument == 'nirspec':
+				bkg_gwa_xtil[w] = header_bkg['GWA_XTIL']
+				bkg_gwa_ytil[w] = header_bkg['GWA_YTIL']
 
-		tolerance = 1.0e-8		# Same tolerance as JWST calibration pipeline
-		diff_xtil = np.absolute(sci_gwa_xtil - bkg_gwa_xtil)
-		diff_ytil = np.absolute(sci_gwa_ytil - bkg_gwa_ytil)
+		if params.instrument == 'nirspec':
+			tolerance = 1.0e-8		# Same tolerance as JWST calibration pipeline
+			diff_xtil = np.absolute(sci_gwa_xtil - bkg_gwa_xtil)
+			diff_ytil = np.absolute(sci_gwa_ytil - bkg_gwa_ytil)
 
-		# If tolerance not met, use manual pixel-by-pixel subtraction instead
-		if np.max(diff_xtil) > tolerance:
-			print('WARNING: Relative grating wheel assembly tilts for science and background observations not within tolerance!')
-			print('Switching over to bkg_subtract == "pixel" method')
-			params.bkg_subtract = 'pixel'
-			params.vers.replace('asn', 'pixel')
+			# If tolerance not met, use manual pixel-by-pixel subtraction instead
+			if np.max(diff_xtil) > tolerance:
+				print('WARNING: Relative grating wheel assembly tilts for science and background observations not within tolerance!')
+				print('Switching over to bkg_subtract == "pixel" method')
+				params.bkg_subtract = 'pixel'
+				params.vers.replace('asn', 'pixel')
 
 	## Method 1: Subtract average background pixel-by-pixel for each science file
 	if params.bkg_subtract == 'pixel':
@@ -140,8 +143,8 @@ def run(params):
 				asn_name = new_file.split(f'.fits')[0].split('/')[-1]
 				asn = asn_from_list.asn_from_list([new_file], rule=DMSLevel2bBase, format='json')
 				asn['asn_type'] = "spec2"
-				asn['program'] = prog_id
-				asn['asn_id'] = f'o{obs_numb}'
+				asn['program'] = params.prog_id
+				asn['asn_id'] = f'o{params.obs_numb}'
 
 				# Add all appropriate background files (have to do this manually, due to directory differences)
 				if not nod:

@@ -18,19 +18,14 @@ def run(params):
     	Object containing all parameter settings for pipeline run.
 	'''
 
-	# Get cal files produced by standard JWST pipeline or custom processing
-	dir_add = ''
-	if params.cube_align != False:
-		dir_add += params.cube_align
-	dir_add += params.stage2_suffix
-		
+	# Get cal files produced by standard JWST pipeline or custom processing		
 	if len(params.vers) > 0:
-		input_files = sorted(glob(f'{params.data_dir}{params.prog_id}/Obs{params.obs_numb}/Stage2{dir_add}/*rate{params.vers}_calints.fits'))
+		input_files = sorted(glob(f'{params.data_dir}{params.prog_id}/Obs{params.obs_numb}/Stage2{params.stage2_suffix}/*rate{params.vers}_calints.fits'))
 	else:
 		if params.instrument == 'nirspec':
-			input_files = sorted(glob(f'{params.data_dir}{params.prog_id}/Obs{params.obs_numb}/Stage2{dir_add}/*nrs?_calints.fits'))
+			input_files = sorted(glob(f'{params.data_dir}{params.prog_id}/Obs{params.obs_numb}/Stage2{params.stage2_suffix}/*nrs?_calints.fits'))
 		elif params.instrument == 'miri':
-			input_files = sorted(glob(f'{params.data_dir}{params.prog_id}/Obs{params.obs_numb}/Stage2{dir_add}/*[e]_calints.fits'))
+			input_files = sorted(glob(f'{params.data_dir}{params.prog_id}/Obs{params.obs_numb}/Stage2{params.stage2_suffix}/*[e]_calints.fits'))
 
 	# Define output directory
 	outdir = f'{params.data_dir}{params.prog_id}/Obs{params.obs_numb}/Stage3{params.stage3_suffix}/'

@@ -14,7 +14,7 @@ def run(params):
 
 	# Run for both science and (if needed) background observations
 	obs = [params.obs_numb]
-	if params.bkg_obs_numb is not None:
+	if params.bkg_obs_numb is not None and params.bkg_obs_numb != params.obs_numb:
 		obs.append(params.bkg_obs_numb)
 
 	for oo in obs:
