@@ -7,6 +7,7 @@ There are two scripts that can be used to run the pipeline:
 1. **run_jwstspec.py** - This is a generalized run function that allows for full functionality, including spectral extraction of both NIRSpec and MIRI spectroscopic data.
 2. **run_jwstspec_simple.py** - This is an abridged run function exclusively for MIRI data that contains only the data download and processing steps.
 
+Users should make copies of those files to edit and run.
 
 ### Installation
 We recommend that users first create and activate a new conda environment:
