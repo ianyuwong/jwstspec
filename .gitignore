@@ -4,7 +4,8 @@ __pycache__/
 *$py.class
 
 # User-supplied run scripts and other miscellaneous files
-/*.py
+!example_run_jwstspec.py
+!example_run_jwstspec_simple.py
 
 # C extensions
 *.so
