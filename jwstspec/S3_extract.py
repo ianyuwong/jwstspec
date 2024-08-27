@@ -28,7 +28,7 @@ def run(params):
 				input_files = np.array(sorted(glob(f'{params.data_dir}{params.prog_id}/Obs{params.obs_numb}/Stage2{params.stage2_suffix}/*[n,r,g][g,t,e]_{affix}.fits')))
 	elif params.extract_stage == 'Stage3':
 		input_files = np.array(sorted(glob(f'{params.data_dir}{params.prog_id}/Obs{params.obs_numb}/Stage3{params.stage3_suffix}/*_{affix}.fits')))
-	input_files = aux.select_spec_files(input_files)
+	input_files = aux.select_spec_files(input_files, params)
 	nfiles = len(input_files)
 
 	print(f'Stage 3: Extracting spectra from {nfiles} files...')

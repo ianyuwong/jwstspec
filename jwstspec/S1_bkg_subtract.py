@@ -38,8 +38,8 @@ def run(params):
 			vers = 'corr1' 
 		elif params.readnoise_correct == 'moving_median':
 			vers = 'corr2'
-	sci_files = aux.select_spec_files(np.array(sorted(glob(f'{sci_dir}*_rate{vers}.fits'))))
-	bkg_files = aux.select_spec_files(np.array(sorted(glob(f'{bkg_dir}*_rate{vers}.fits'))))
+	sci_files = aux.select_spec_files(np.array(sorted(glob(f'{sci_dir}*_rate{vers}.fits'))), params)
+	bkg_files = aux.select_spec_files(np.array(sorted(glob(f'{bkg_dir}*_rate{vers}.fits'))), params)
 	nscifiles = len(sci_files)
 	nbkgfiles = len(bkg_files)
 	if nscifiles == 0:

@@ -28,7 +28,7 @@ def run(params):
 			input_files = np.array(sorted(glob(f'{params.data_dir}{params.prog_id}/Obs{params.obs_numb}/Stage2{params.stage2_suffix}/*nrs?_cal.fits')))
 		elif params.instrument == 'miri':
 			input_files = np.array(sorted(glob(f'{params.data_dir}{params.prog_id}/Obs{params.obs_numb}/Stage2{params.stage2_suffix}/*[n,r,g][g,t,e]_cal.fits')))
-	input_files = aux.select_spec_files(input_files)
+	input_files = aux.select_spec_files(input_files, params)
 
 	# Sort by grating (NIRSpec only)
 	if params.instrument == 'nirspec':

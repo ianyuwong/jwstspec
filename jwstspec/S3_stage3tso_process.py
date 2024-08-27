@@ -28,7 +28,7 @@ def run(params):
 			input_files = np.array(sorted(glob(f'{params.data_dir}{params.prog_id}/Obs{params.obs_numb}/Stage2{params.stage2_suffix}/*nrs?_calints.fits')))
 		elif params.instrument == 'miri':
 			input_files = np.array(sorted(glob(f'{params.data_dir}{params.prog_id}/Obs{params.obs_numb}/Stage2{params.stage2_suffix}/*[e]_calints.fits')))
-	input_files = aux.select_spec_files(input_files)
+	input_files = aux.select_spec_files(input_files, params)
 
 	# Define output directory
 	outdir = f'{params.data_dir}{params.prog_id}/Obs{params.obs_numb}/Stage3{params.stage3_suffix}/'
