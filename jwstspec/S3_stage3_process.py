@@ -5,6 +5,7 @@ from jwst.associations import asn_edit, asn_from_list, association_io
 from jwst.associations.lib.rules_level3 import Asn_Lv3NRSIFU, Asn_Lv3NRSFSS, Asn_Lv3MIRMRS, Asn_Lv3SpectralTarget
 from jwst.pipeline.calwebb_spec3 import Spec3Pipeline
 import os
+from . import aux
 
 current_dir = os.path.dirname(__file__)
 cfg_file = os.path.join(current_dir, 'log.cfg')
@@ -21,12 +22,13 @@ def run(params):
 
 	# Get cal files produced by standard JWST pipeline or custom processing		
 	if len(params.vers) > 0:
-		input_files = sorted(glob(f'{params.data_dir}{params.prog_id}/Obs{params.obs_numb}/Stage2{params.stage2_suffix}/*rate{params.vers}_cal.fits'))
+		input_files = np.array(sorted(glob(f'{params.data_dir}{params.prog_id}/Obs{params.obs_numb}/Stage2{params.stage2_suffix}/*rate{params.vers}_cal.fits')))
 	else:
 		if params.instrument == 'nirspec':
-			input_files = sorted(glob(f'{params.data_dir}{params.prog_id}/Obs{params.obs_numb}/Stage2{params.stage2_suffix}/*nrs?_cal.fits'))
+			input_files = np.array(sorted(glob(f'{params.data_dir}{params.prog_id}/Obs{params.obs_numb}/Stage2{params.stage2_suffix}/*nrs?_cal.fits')))
 		elif params.instrument == 'miri':
-			input_files = sorted(glob(f'{params.data_dir}{params.prog_id}/Obs{params.obs_numb}/Stage2{params.stage2_suffix}/*[n,r,g][g,t,e]_cal.fits'))
+			input_files = np.array(sorted(glob(f'{params.data_dir}{params.prog_id}/Obs{params.obs_numb}/Stage2{params.stage2_suffix}/*[n,r,g][g,t,e]_cal.fits')))
+	input_files = aux.select_spec_files(input_files)
 
 	# Sort by grating (NIRSpec only)
 	if params.instrument == 'nirspec':

@@ -1,6 +1,8 @@
 import os
 from glob import glob
+import numpy as np
 from jwst.pipeline.calwebb_spec2 import Spec2Pipeline
+from . import aux
 
 current_dir = os.path.dirname(__file__)
 cfg_file = os.path.join(current_dir, 'log.cfg')
@@ -17,9 +19,9 @@ def run(params):
 
 	# Get rate(ints) files from Stage 1 processing
 	if params.bkg_subtract == 'pixel' or params.bkg_subtract == None:
-		input_files = sorted(glob(f'{params.data_dir}{params.prog_id}/Obs{params.obs_numb}/Stage1/*_rate{params.vers}.fits'))
+		input_files = aux.select_spec_files(np.array(sorted(glob(f'{params.data_dir}{params.prog_id}/Obs{params.obs_numb}/Stage1/*_rate{params.vers}.fits'))))
 	elif params.bkg_subtract == 'asn':
-		input_files = sorted(glob(f'{params.data_dir}{params.prog_id}/Obs{params.obs_numb}/Stage1/*_rate{params.vers}.json'))
+		input_files = np.array(sorted(glob(f'{params.data_dir}{params.prog_id}/Obs{params.obs_numb}/Stage1/*_rate{params.vers}.json')))
 	nfiles = len(input_files)
 
 	# Process each one through jwst pipeline module calwebb_spec2

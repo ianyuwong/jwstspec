@@ -1189,6 +1189,40 @@ def move_files(dwnld_dir, data_dir, prog_id, obs_numb, obs_type, dwnld_all):
 		f.write(logstr)
 
 
+def select_spec_files(input_files, params):
+	'''
+	Selects for only the spectroscopic data files with science data from a list of input files
+
+	Parameters
+	----------
+	input_files : numpy.ndarray
+	   	List of input files.
+	params : obj
+		Pipeline run parameters object.
+ 
+	Returns
+	-------
+	select_files : numpy.ndarray
+   		Selected files.
+	'''
+
+	select = np.ones(len(input_files)).astype('bool')
+	for i,fi in enumerate(input_files):
+		header = fits.getheader(fi, 'PRIMARY')
+
+		# Exclude target acquisition and imaging data files
+		if 'TA' in header['EXP_TYPE'] or 'IMAGE' in header['EXP_TYPE']:
+			select[i] = False
+
+		# Exclude NRS2 data files for PRISM and M-grating NIRSpec observations
+		if params.instrument == 'nirspec' and header['GRATING'][-1] != 'H' and header['DETECTOR'] == 'NRS2':
+			select[i] = False
+			
+	select_files = input_files[select]
+
+	return select_files
+
+
 def read_cubes(input_files, suffix=''):
 	'''
 	Reads in s3d.fits input files and creates a list of IFU data cube objects

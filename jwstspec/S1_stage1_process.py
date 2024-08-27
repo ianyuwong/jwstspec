@@ -3,6 +3,7 @@ from jwst.pipeline.calwebb_detector1 import Detector1Pipeline
 import numpy as np
 import astropy.io.fits as fits
 import os
+from . import aux
 
 current_dir = os.path.dirname(__file__)
 cfg_file = os.path.join(current_dir, 'log.cfg')
@@ -26,16 +27,10 @@ def run(params):
 		# Get all uncal files
 		input_files = np.array(sorted(glob(f'{params.data_dir}{params.prog_id}/Obs{oo}/uncal/*_uncal.fits')))
 
-		# Exclude target acquisition observations, and (for NIRSpec) NRS2 uncal files for PRISM and M grating observations
-		select = np.ones(len(input_files)).astype('bool')
-		for i,fi in enumerate(input_files):
-			header = fits.getheader(fi, 'PRIMARY')
-			if 'TA' in header['EXP_TYPE']:
-				select[i] = False
-			if params.instrument == 'nirspec' and header['GRATING'][-1] != 'H' and header['DETECTOR'] == 'NRS2':
-				select[i] = False
-		input_files = input_files[select]
+		# Exclude target acquisition observations, (for MIRI) imaging, and (for NIRSpec) NRS2 uncal files for PRISM and M grating observations
+		input_files = aux.select_spec_files(input_files, params)
 		nfiles = len(input_files)
+
 		print(f'Stage 1: processing {nfiles} files from Obs{oo}:')
 		print(f'{input_files}')
 

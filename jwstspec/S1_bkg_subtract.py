@@ -6,6 +6,7 @@ from jwst.associations import asn_from_list, association_io
 from jwst.associations.lib.rules_level2_base import DMSLevel2bBase
 from jwst.background.background_sub import background_sub
 from jwst import datamodels
+from . import aux
 
 def run(params):
 	'''
@@ -37,8 +38,8 @@ def run(params):
 			vers = 'corr1' 
 		elif params.readnoise_correct == 'moving_median':
 			vers = 'corr2'
-	sci_files = sorted(glob(f'{sci_dir}*_rate{vers}.fits'))
-	bkg_files = sorted(glob(f'{bkg_dir}*_rate{vers}.fits'))
+	sci_files = aux.select_spec_files(np.array(sorted(glob(f'{sci_dir}*_rate{vers}.fits'))))
+	bkg_files = aux.select_spec_files(np.array(sorted(glob(f'{bkg_dir}*_rate{vers}.fits'))))
 	nscifiles = len(sci_files)
 	nbkgfiles = len(bkg_files)
 	if nscifiles == 0:
