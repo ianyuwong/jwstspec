@@ -16,6 +16,7 @@ import copy
 import os
 import datetime
 import warnings
+import photutils
 
 #Suppress non-critical warnings
 warnings.filterwarnings('ignore', category=UserWarning, append=True)
@@ -128,7 +129,6 @@ class ifu_cube(object):
 			Default is False.
 	   	'''
 		
-		import photutils
 		print(f"Working on {self.filename}...")
 
 		# Save extraction parameters in object

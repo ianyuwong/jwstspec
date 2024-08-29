@@ -1,5 +1,5 @@
 # jwstspec
-A generalized pipeline for customized end-to-end processing and spectral extraction of JWST spectroscopic data. 
+A multipurpose pipeline for customized end-to-end processing and spectral extraction of JWST spectroscopic data. 
 This code works for all observations obtained with the NIRSpec integral field unit, NIRSpec fixed slit, MIRI MRS, and MRS LRS slit and slitless modes.
 
 (Under construction...)
@@ -46,5 +46,5 @@ For users who do not wish to use jwst_mast_query or would like to run the pipeli
 - scipy
 - astropy
 - matplotlib
-- photutils   (*only if running spectral extraction*)
+- photutils
 - numbamisc   (*only if running `defringing = 'moving_median'` method for NIRSpec defringing*)
