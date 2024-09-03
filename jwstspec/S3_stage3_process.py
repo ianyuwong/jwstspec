@@ -78,10 +78,20 @@ def run(params):
 		except:
 			params.stage3_rules['extract_1d'] = {'ifu_autocen' : True}
 
+		# Set other parameters using pipeline settings
 		if params.instrument == 'miri':
 			params.stage3_rules['extract_1d'].update({'ifu_rfcorr' : True}) 		# Turn on extra spectrum-level defringing step
 			params.stage3_rules['cube_build'] = {'output_type' : 'band'}			# Create separate Level 3 product for each MIRI sub-band (due to rotational modulation)
-			params.stage3_rules['spectral_leak'] = {'skip' : False}				# Turn on optional spectral leak correction step
+			params.stage3_rules['spectral_leak'] = {'skip' : False}					# Turn on optional spectral leak correction step
+		if hasattr(params, 'cube_align'):
+			if params.cube_align == 'ifu':
+				cube_align_rule = {'coord_system' : 'ifualign'}
+			elif params.cube_align == 'internal':
+				cube_align_rule = {'coord_system' : 'internal_cal'}
+			try:
+				params.stage3_rules['cube_build'].update(cube_align_rule)
+			except:
+				params.stage3_rules['cube_build'] = cube_align_rule
 
 	for i in range(ngroups):
 		print(f'Combining dithers for {params.instrument.upper()} {used_gratings[i]}...')

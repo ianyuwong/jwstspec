@@ -42,7 +42,7 @@ def run(params):
 
 			# Set other parameters using pipeline settings
 			if params.instrument == 'miri':
-				params.stage2_rules['residual_fringe'] = {'skip' : False}			# Make sure residual_fringe runs on MIRI MRS datasets
+				params.stage2_rules['residual_fringe'] = {'skip' : False}				# Make sure residual_fringe runs on MIRI MRS datasets
 				params.stage2_rules['extract_1d'].update({'ifu_rfcorr' : True}) 		# Turn on extra spectrum-level defringing step
 			if hasattr(params, 'cube_align'):
 				if params.cube_align == 'ifu':
@@ -52,7 +52,7 @@ def run(params):
 		if params.instrument == 'nirspec':
 			params.stage2_rules['nsclean'] = {'skip' : True}			# Make sure to skip this (for now), since NSClean is currently handled in S1_noise_correct.py
 		if params.bkg_subtract == 'asn':
-			params.stage2_rules['bkg_subtract'] = {'skip' : False}	# Make sure pipeline runs the ASN background subtraction routine
+			params.stage2_rules['bkg_subtract'] = {'skip' : False}		# Make sure pipeline runs the ASN background subtraction routine
 
 		# Pipeline call
 		Spec2Pipeline.call(fi, output_dir=outdir, save_results=True, steps=params.stage2_rules, logcfg=cfg_file)
