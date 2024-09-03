@@ -88,6 +88,8 @@ def run(params):
 				cube_align_rule = {'coord_system' : 'ifualign'}
 			elif params.cube_align == 'internal':
 				cube_align_rule = {'coord_system' : 'internal_cal'}
+			else:
+				cube_align_rule = {'coord_system' : 'skyalign'}
 			try:
 				params.stage3_rules['cube_build'].update(cube_align_rule)
 			except:
