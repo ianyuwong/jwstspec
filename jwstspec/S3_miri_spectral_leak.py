@@ -27,8 +27,12 @@ def run(params):
 		append += '-defringed'
 
 	# Get files that contains 1B and 3A sub-bands
-	ch1b_file = glob(inputdir+f'*ch1*MEDIUM_MIRIFUSHORT_spectrum{append}.dat')[0]
-	ch3a_file = glob(inputdir+f'*ch3*SHORT_MIRIFULONG_spectrum{append}.dat')[0]
+	try:
+		ch1b_file = glob(inputdir+f'*ch1*MEDIUM_MIRIFUSHORT_spectrum{append}.dat')[0]
+		ch3a_file = glob(inputdir+f'*ch3*SHORT_MIRIFULONG_spectrum{append}.dat')[0]
+	except:
+		print('Missing Ch1b and/or Ch3a data. Skipping spectral leak correction.')
+		return
 
 	# Extract spectral segments
 	ch1b_start = 5.65
@@ -69,5 +73,7 @@ def run(params):
 	new_file = ch3a_file.split('.dat')[0] + '-specleakcorr.dat'
 	header = '\n'.join(np.genfromtxt(ch3a_file, max_rows=16, delimiter='xx',dtype='str', comments='$')).replace('# ','')
 	np.savetxt(new_file, ch3a_data, delimiter='\t', fmt='%.6f', header=header)
+
+	print('MIRI spectral leak correction complete!')
 
 	return params

@@ -25,6 +25,7 @@ def run(params):
 		spec_files = np.array(sorted(glob(inputdir+'*spectrum.pickle')))
 
 	resultsdir = inputdir
+	print(f'Stage 3: Combining spectra...')
 
 	# Parse gratings and detectors to group exposures together
 	gratings = np.array([fi.split('_')[-4] for fi in spec_files])
@@ -47,5 +48,7 @@ def run(params):
 
 		# Save spectrum
 		aux.spec_save(wave, flux, fluxerr, resultsdir, meta)
+
+	print('Stage 3 spectra combination complete!')
 
 	return params
