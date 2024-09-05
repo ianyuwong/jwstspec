@@ -1334,10 +1334,10 @@ def spec_combine(group, resultsdir, spec_bkg_sub=True, special_defringe=False, s
 			mask = np.zeros(len(wave))
 		mask[np.isnan(flux)] = 1
 		mask[flux == 0] = 1
-		mask[flux == 1e-8] = 1 		# points that were not handled in S3_special_defringe
+		mask[flux == 1e-8] = 1 				# points that were not handled in S3_special_defringe
 		mask[np.isnan(fluxerr)] = 1
 		mederr = np.nanmedian(fluxerr[flux != 0])
-		mask[fluxerr > 10*mederr] = 1 # anomalously large flux uncertainties
+		mask[fluxerr > 100*mederr] = 1 		# anomalously large flux uncertainties
 		flux = np.ma.array(flux, mask=mask)
 		fluxerr = np.ma.array(fluxerr, mask=mask)
 
