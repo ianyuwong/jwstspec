@@ -253,7 +253,7 @@ class ifu_cube(object):
 			med_err = np.ma.median(px_array_err)
 
 			# Clip masked values and outliers in fluxerr
-			ww = np.where((px_array.mask == False) & (px_array_err < 10 * med_err))
+			ww = np.where((px_array.mask == False) & (px_array_err < 100 * med_err))
 			clip = px_array[ww]
 			clip_err = px_array_err[ww]
 			clip_ind = ind[ww]
@@ -267,7 +267,7 @@ class ifu_cube(object):
 				diff = px_array - BSpline(*tck)(ind)
 
 				# Find and flag outliers in both flux and fluxerr, update masked cube
-				outlier_mask = (abs(diff) > self.pix_sig_clip * px_array_err) | (px_array_err > 10 * med_err)
+				outlier_mask = (abs(diff) > self.pix_sig_clip * px_array_err) | (px_array_err > 100 * med_err)
 				new_mask = np.logical_or(px_array.mask, outlier_mask)
 				self.cube_mask[:,yarr[i],xarr[i]] = new_mask
 
