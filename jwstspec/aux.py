@@ -1034,7 +1034,7 @@ class params(object):
 		vers = ''
 		if self.tso_observation:
 			vers += 'ints'
-		if self.instrument == 'nirspec' and hasattr(params, 'readnoise_correct'):
+		if self.instrument == 'nirspec' and hasattr(self, 'readnoise_correct'):
 			if self.readnoise_correct == 'nsclean':
 				vers += 'corr0'
 			elif self.readnoise_correct == 'constant':
@@ -1548,7 +1548,7 @@ def spec_plot(x, y, yerr, resultsdir, meta, dither_grp):
 	ax.tick_params(labelsize=12)
 	ax.set_xlabel('Wavelength [um]',fontsize=14)
 	ax.set_ylabel(f'Flux [MJy]',fontsize=14)
-	plt.legend(loc='upper right')
+	plt.legend(loc='best')
 	plt.savefig(outf)
 	plt.close()
 

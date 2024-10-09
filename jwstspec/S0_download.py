@@ -23,7 +23,7 @@ def run(params):
 		aux.make_dirs(params.data_dir, params.prog_id, oo, params.obs_type, params.dwnld_all)
 
 		# Download data from MAST, if needed
-		if params.download:
+		if params.download or not files_exist:
 			print('Stage 0: Downloading data from MAST...')
 			cmd_list = ["jwst_download.py","--propID",f"{params.prog_id}","--obsnums",f"{oo}","--instrument",f"{params.instrument}",
 						"--obsmode",f"{params.obs_type}","--lookbacktime","100000","--clobber","--filetypes","uncal"] 

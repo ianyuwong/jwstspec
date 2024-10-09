@@ -115,7 +115,7 @@ def run(params):
 					ind = bkg_ind[j]
 					bkg_list = bkg_groups[i][ind:ind+1]
 				bkg_model, result = background_sub(sci_model, bkg_list, 3.0, None)		# Default step settings in Spec2Pipeline
-				out_file = sci_file.replace(f'_rate{vers}',f'_rate{vers}-subbkg_pixel')
+				out_file = sci_file.replace(f'_rate{vers}',f'_rate{params.vers}')
 
 				hdulist = fits.open(sci_file)
 				hdulist['SCI',1].data = result.data
@@ -136,7 +136,7 @@ def run(params):
 			for j in range(len(sci_groups[i])):
 				# Save new copies of the science files to include -subbkg_asn, so that the Level 2 outputs have that suffix
 				old_file = sci_groups[i][j]
-				new_file = sci_groups[i][j].replace(f'_rate{vers}',f'_rate{vers}-subbkg_asn')
+				new_file = sci_groups[i][j].replace(f'_rate{vers}',f'_rate{params.vers}')
 				cmd = f'scp {old_file} {new_file}'
 				os.system(cmd)
 
