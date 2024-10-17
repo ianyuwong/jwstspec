@@ -21,7 +21,7 @@ def run(params):
 	'''
 
 	# Get cal files produced by standard JWST pipeline or custom processing		
-	if len(params.vers) > 0:
+	if 'subbkg' in params.vers:		# If background subtraction was performed
 		input_files = np.array(sorted(glob(f'{params.data_dir}{params.prog_id}/Obs{params.obs_numb}/Stage2{params.stage2_suffix}/*rate{params.vers}_calints.fits')))
 	else:
 		if params.instrument == 'nirspec':
