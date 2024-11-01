@@ -144,7 +144,7 @@ class ifu_cube(object):
 			
 		# Define output directory
 		if self.extr_method == 'aperture':
-			self.outputdir = f'{self.outputbase}{self.extr_aper_rad}_{self.bkg_aper_in}_{self.bkg_aper_out}{self.suffix}/'
+			self.outputdir = f'{self.outputbase}aper_{self.extr_aper_rad}_{self.bkg_aper_in}_{self.bkg_aper_out}{self.suffix}/'
 		elif self.extr_method == 'PSF':
 			self.outputdir = f'{self.outputbase}PSF_{self.extr_aper_rad}_{self.bkg_aper_in}{self.suffix}/'
 		elif self.extr_method == 'box':
@@ -250,10 +250,10 @@ class ifu_cube(object):
 			px_array = copy.deepcopy(self.mask_imgs[:,yarr[i],xarr[i]])
 			px_array_err = copy.deepcopy(self.mask_errs[:,yarr[i],xarr[i]])
 			ind = np.arange(len(px_array))
-			med_err = np.ma.median(px_array_err)
+			med_err = np.ma.median(px_array_err / px_array)
 
-			# Clip masked values and outliers in fluxerr
-			ww = np.where((px_array.mask == False) & (px_array_err < 100 * med_err))
+			# Clip masked values and outliers in relative fluxerr
+			ww = np.where((px_array.mask == False) & (px_array_err / px_array < 10 * med_err))
 			clip = px_array[ww]
 			clip_err = px_array_err[ww]
 			clip_ind = ind[ww]
@@ -357,13 +357,16 @@ class ifu_cube(object):
 
 		print('Starting PSF fitting...')
 
-		# Carry out iterative PSF fitting with outlier flagging for every wavelength slice one by one
-		flux = np.zeros(self.nimgs)
-		flux_bkg = np.zeros(self.nimgs)
-		fluxerr = np.zeros(self.nimgs)
-		bkg = np.zeros(self.nimgs)
+		# Initiate data arrays
+		bkg_per_pixel = np.zeros(self.nimgs)	# Background value per pixel
+		bkg_aper = np.zeros(self.nimgs)			# Total background in aperture
+		flux_aper_bkg = np.zeros(self.nimgs)	# Flux with no background subtraction
+		flux_aper = np.zeros(self.nimgs)		# Background-subtracted flux
+		fluxerr_aper = np.zeros(self.nimgs)		# Flux error
 		mask_aper = np.zeros(self.nimgs)		# Mask-in-aperture flag array
 		mask_close = np.zeros(self.nimgs)		# Mask-close-to-center flag array
+
+		# Carry out iterative PSF fitting with outlier flagging for every wavelength slice one by one
 		for i in range(self.window_width,self.nimgs-self.window_width-1):
 			# Skip slice if it is all zeros or masked values (NaNs)
 			if np.ma.sum(self.mask_imgs[i]) == 0 or np.sum(self.mask_imgs[i].mask) == self.nx*self.ny:
@@ -375,7 +378,7 @@ class ifu_cube(object):
 			err = copy.deepcopy(self.mask_errs[i]) * rescale
 
 			# Create template PSF
-			box_width = self.extr_aper_rad
+			box_width = int(np.round(self.extr_aper_rad))
 			box_width2 = self.bkg_aper_in
 			sub_cube = np.ma.median(self.mask_imgs[i-self.window_width:i+self.window_width+1,:,:], axis=0)
 			sub_cube2 = copy.deepcopy(sub_cube)
@@ -412,27 +415,37 @@ class ifu_cube(object):
 				print(f'Skipping...PSF fitting did not converge!')
 				continue
 
-			flux[i] = np.sum(model)												# Integrated flux of best-fit PSF model
-			flux_bkg[i] = np.sum(model_bkg)										# Integrated PSF flux with background level added (not really used)	
-			bkg[i] = res[0][1]													# Best-fit background level
+			# flux_aper[i] = np.sum(model)												# Integrated flux of best-fit PSF model
+			# flux_aper_bkg[i] = np.sum(model_bkg)										# Integrated PSF flux with background level added (not really used)	
+			# bkg_per_pixel[i] = res[0][1]												# Best-fit background level
 
 			# Convert background level to counts for shot noise calculation
+			bkg_per_pixel[i] = res[0][1]												# Best-fit background level
 			uJy_per_cts	= self.header['PHOTMJSR'] * self.header['PIXAR_SR'] / self.meta['EFFEXPTM'] * rescale
-			bkg_shot_noise = np.sqrt(abs(bkg[i]) * uJy_per_cts)				
+			bkg_shot_noise = np.sqrt(abs(bkg_per_pixel[i]) * uJy_per_cts)				
 
 			# Calculate flux uncertainty using weighted error array with background contribution
-			aper_mask = np.ones(img.shape).astype('bool')
-			aper_mask[self.centroidy-box_width:self.centroidy+box_width+1, self.centroidx-box_width:self.centroidx+box_width+1] = False
-			weight_err = np.ma.MaskedArray(np.sqrt((model/np.max(model) * err)**2 + bkg_shot_noise**2), mask=aper_mask)
+			# aper_mask = np.ones(img.shape).astype('bool')
+			# aper_mask[self.centroidy-box_width:self.centroidy+box_width+1, self.centroidx-box_width:self.centroidx+box_width+1] = False
+			# weight_err = np.ma.MaskedArray(np.sqrt((model/np.max(model) * err)**2 + bkg_shot_noise**2), mask=aper_mask)
+			weight_err = np.ma.MaskedArray(np.sqrt((model/np.max(model) * err)**2 + bkg_shot_noise**2))
 
-			# Between the optimization flux uncertainty estimate and the weighted error, choose the larger one
-			flux_choices = [np.sqrt(res[1][0][0]), np.sqrt(np.ma.sum(weight_err**2))]	
-			fluxerr[i] = max(flux_choices)										# Total flux error
+			# Define extraction aperture and carry out circular aperture extraction on the best-fit PSF model
+			extr_aper = photutils.aperture.CircularAperture(self.centroid, r=self.extr_aper_rad)
+			aper_stats = photutils.aperture.ApertureStats(model, extr_aper, error=weight_err)
+			aper_stats_bkg = photutils.aperture.ApertureStats(model_bkg, extr_aper, error=weight_err)
+			flux_aper[i] = aper_stats.sum
+			flux_aper_bkg[i] = aper_stats_bkg.sum
+			bkg_aper[i] = bkg_per_pixel[i] * aper_stats.sum_aper_area.value
+
+			# Between the optimization flux uncertainty estimate and the total weighted error, choose the larger one
+			flux_choices = [np.sqrt(res[1][0][0]), aper_stats.sum_err]	
+			fluxerr_aper[i] = max(flux_choices)										# Total flux error
 
 			print(f'Slice {i+1} of {self.nimgs}, {"{:.4f}".format(self.wave[i])} nm')
-			print(f'Flux = {"{:.4f}".format(flux[i])}')
-			print(f'Fluxerr = {"{:.4f}".format(fluxerr[i])}')
-			print(f'Bkg = {"{:.4f}".format(bkg[i])}')
+			print(f'Flux = {"{:.4f}".format(flux_aper[i])}')
+			print(f'Fluxerr = {"{:.4f}".format(fluxerr_aper[i])}')
+			print(f'Bkg = {"{:.4f}".format(bkg_aper[i])}')
 
 			# Flag wavelength slice if there is at least one masked point within fitting aperture
 			aper_mask_sum = np.sum(img.mask[self.centroidy-box_width:self.centroidy+box_width+1, self.centroidx-box_width:self.centroidx+box_width+1])
@@ -445,7 +458,7 @@ class ifu_cube(object):
 				mask_close[i] = 1
 
 		# Create spectrum object and save it
-		spec = spectrum(self, flux_bkg/rescale, flux/rescale, fluxerr/rescale, None, None, None, bkg/rescale, None, mask_aper, mask_close)
+		spec = spectrum(self, flux_aper_bkg/rescale, flux_aper/rescale, fluxerr_aper/rescale, None, None, None, bkg_per_pixel/rescale, bkg_aper/rescale, mask_aper, mask_close)
 		spec.save_spec()
 
 
@@ -1080,6 +1093,17 @@ class params(object):
 				else:
 					stop
 
+			# For box and IFU extraction methods and all slit spectrum extractions, enforce integer aperture size requirement
+			if self.extr_method == 'PSF':
+				if not isinstance(self.bkg_aper_in, int):
+					raise TypeError(f'Background aperture size for PSF extraction must be an integer.')
+			if self.extr_method == 'box':
+				if not isinstance(self.extr_aper_rad, int) or not isinstance(self.bkg_aper_in, int):
+					raise TypeError(f'Aperture sizes for box extraction must be integers.')
+			if self.obs_type == 'slit':
+				if not isinstance(self.extr_aper_rad, int) or not isinstance(self.bkg_aper_in, int) or not isinstance(self.bkg_aper_out, int):
+					raise TypeError(f'Aperture sizes for slit observations must be integers.')
+
 
 #============================================================================================================
 #%%%%%%%%%%%% OTHER FUNCTIONS %%%%%%%%%%%%%
@@ -1334,10 +1358,10 @@ def spec_combine(group, resultsdir, spec_bkg_sub=True, special_defringe=False, s
 			mask = np.zeros(len(wave))
 		mask[np.isnan(flux)] = 1
 		mask[flux == 0] = 1
-		mask[flux == 1e-8] = 1 				# points that were not handled in S3_special_defringe
+		mask[flux == 1e-8] = 1 					# points that were not handled in S3_special_defringe
 		mask[np.isnan(fluxerr)] = 1
-		mederr = np.nanmedian(fluxerr[flux != 0])
-		mask[fluxerr > 100*mederr] = 1 		# anomalously large flux uncertainties
+		mederr = np.nanmedian(fluxerr[flux != 0]/flux[flux != 0])
+		mask[fluxerr > 10*mederr*flux] = 1 		# anomalously large relative flux uncertainties
 		flux = np.ma.array(flux, mask=mask)
 		fluxerr = np.ma.array(fluxerr, mask=mask)
 

@@ -16,7 +16,7 @@ def run(params):
 
 	# Grab spectrum files
 	if params.extr_method == 'aperture':
-		inputdir = f'{params.data_dir}{params.prog_id}/Obs{params.obs_numb}/outputs/{params.extr_aper_rad}_{params.bkg_aper_in}_{params.bkg_aper_out}{params.extr_suffix}/'
+		inputdir = f'{params.data_dir}{params.prog_id}/Obs{params.obs_numb}/outputs/aper_{params.extr_aper_rad}_{params.bkg_aper_in}_{params.bkg_aper_out}{params.extr_suffix}/'
 	elif params.extr_method == 'PSF':
 		inputdir = f'{params.data_dir}{params.prog_id}/Obs{params.obs_numb}/outputs/PSF_{params.extr_aper_rad}_{params.bkg_aper_in}{params.extr_suffix}/'
 	elif params.extr_method == 'box':
