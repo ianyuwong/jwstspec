@@ -53,9 +53,14 @@ def run(params):
 
 	for i,fi in enumerate(input_files):
 		print(f'Processing file {i+1} of {nfiles}...')
+		# Set distinct output file base, in case of ASN-based background subtraction
+		if params.bkg_subtract == 'asn':
+			output_file_base = fi.split('.json')[0].split('/')[-1]
+		else:
+			output_file_base = None
 		
 		# Pipeline call
-		Spec2Pipeline.call(fi, output_dir=outdir, save_results=True, steps=params.stage2_rules, logcfg=cfg_file)
+		Spec2Pipeline.call(fi, output_file=output_file_base, output_dir=outdir, save_results=True, steps=params.stage2_rules, logcfg=cfg_file)
 
 	print('Stage 2 spectrum build complete!')
 

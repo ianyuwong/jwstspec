@@ -133,15 +133,9 @@ def run(params):
 			if len(sci_groups[i]) == 0:
 				continue
 			for j in range(len(sci_groups[i])):
-				# Save new copies of the science files to include -subbkg_asn, so that the Level 2 outputs have that suffix
-				old_file = sci_groups[i][j]
-				new_file = sci_groups[i][j].replace(f'_rate{vers}',f'_rate{params.vers}')
-				cmd = f'scp {old_file} {new_file}'
-				os.system(cmd)
-
 				# This is a default Level 2 association
-				asn_name = new_file.split(f'.fits')[0].split('/')[-1]
-				asn = asn_from_list.asn_from_list([new_file], rule=DMSLevel2bBase, format='json')
+				asn_name = sci_groups[i][j].split(f'.fits')[0].split('/')[-1].replace(f'_rate{vers}',f'_rate{params.vers}')
+				asn = asn_from_list.asn_from_list([sci_groups[i][j]], rule=DMSLevel2bBase, format='json')
 				asn['asn_type'] = "spec2"
 				asn['program'] = params.prog_id
 				asn['asn_id'] = f'o{params.obs_numb}'
