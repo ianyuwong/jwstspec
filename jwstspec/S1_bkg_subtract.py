@@ -19,8 +19,8 @@ def run(params):
 	'''
 
 	# Define input science and background file directories
-	sci_dir = f'{params.data_dir}{params.prog_id}/Obs{params.obs_numb}/Stage1/'
-	bkg_dir = f'{params.data_dir}{params.prog_id}/Obs{params.bkg_obs_numb}/Stage1/'
+	sci_dir = f'{params.data_dir}{params.prog_id}/Obs{params.obs_numb}/Stage1{params.stage1_suffix}/'
+	bkg_dir = f'{params.data_dir}{params.prog_id}/Obs{params.bkg_obs_numb}/Stage1{params.stage1_suffix}/'
 	if params.obs_numb == params.bkg_obs_numb:	# Set nod = True if using pairwise dither subtraction from same observation
 		nod = True 
 		bkg_ind = [1,0,3,2]						# Index handling for pairwise subtraction

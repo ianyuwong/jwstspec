@@ -997,7 +997,7 @@ class params(object):
 		self.stage3_rules = {}
 
 	def add_params(self, prog_id, obs_numb, bkg_obs_numb, instrument, obs_type, tso_observation, dwnld_dir, data_dir, download, dwnld_all,
-					readnoise_correct, bkg_subtract, cube_align, stage2_suffix, stage3_suffix, extract_stage, extr_method, extr_suffix, extr_aper_rad,
+					readnoise_correct, bkg_subtract, cube_align, stage1_suffix, stage2_suffix, stage3_suffix, extract_stage, extr_method, extr_suffix, extr_aper_rad,
 					bkg_aper_in, bkg_aper_out, window_width, pix_sig_clip, bkg_sig_clip, fix_centroid, save_cleaned, spec_bkg_sub, spec_sig_clip, spec_window_half, special_defringe):
 		'''
 		Add parameters. See run_jwstspec.py file for parameter definitions.
@@ -1016,6 +1016,7 @@ class params(object):
 		self.readnoise_correct = readnoise_correct
 		self.bkg_subtract = bkg_subtract
 		self.cube_align = cube_align
+		self.stage1_suffix = stage1_suffix
 		self.stage2_suffix = stage2_suffix
 		self.stage3_suffix = stage3_suffix
 		self.extract_stage = extract_stage
@@ -1066,11 +1067,6 @@ class params(object):
 		if self.instrument == 'nirspec':
 			if self.readnoise_correct not in [None, 'nsclean', 'constant', 'moving_median']:
 				raise ValueError(f'Destriping method {self.destriping} not recognized.')
-
-		# MIRI LRS slitless observations shohuld always be TSOs
-		if self.obs_type == 'slitless' and not self.tso_observation:
-			self.tso_observation = True
-			print('MIRI LRS slitless observation. Switching params.tso_observation from False to True.')
 
 		# Check bkg_subtract method
 		if self.bkg_subtract is not None:

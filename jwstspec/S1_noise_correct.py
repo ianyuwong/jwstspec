@@ -23,12 +23,12 @@ def run(params):
 
 	for oo in obs:
 		# Get rate files produced by standard JWST pipeline
-		input_files = sorted(glob(f'{params.data_dir}{params.prog_id}/Obs{oo}/Stage1/*rate.fits'))
+		input_files = sorted(glob(f'{params.data_dir}{params.prog_id}/Obs{oo}/Stage1{params.stage1_suffix}/*rate.fits'))
 		nfiles = len(input_files)
 		if nfiles == 0:
-			raise Warning('ERROR: no rate files found in Stage1 directory!')
+			raise Warning('ERROR: no rate files found in Stage 1 directory!')
 
-		print(f'Stage 1: Running 1/f detector readnoise correction on {nfiles} files  from Obs{oo} using {params.readnoise_correct} method...')
+		print(f'Stage 1: Running 1/f detector readnoise correction on {nfiles} files from Obs{oo} using {params.readnoise_correct} method...')
 
 		# Separate affix for different destriping methods
 		if params.readnoise_correct == 'nsclean':
@@ -47,7 +47,7 @@ def run(params):
 				current_dir = os.path.dirname(__file__)
 				cfg_file = os.path.join(current_dir, 'log.cfg')
 
-				outdir = f'{params.data_dir}{params.prog_id}/Obs{oo}/Stage1/'
+				outdir = f'{params.data_dir}{params.prog_id}/Obs{oo}/Stage1{params.stage1_suffix}/'
 				result = pipe.assign_wcs_step.AssignWcsStep.call(fi, logcfg=cfg_file)
 				if params.obs_type == 'ifu':
 					result = pipe.msaflagopen_step.MSAFlagOpenStep.call(result, logcfg=cfg_file)
@@ -67,7 +67,7 @@ def run(params):
 
 				if params.obs_type == 'ifu':
 					# Use cal file to get on-sky area to exclude for 1/f noise correction
-					cal_file = fi.replace('Stage1/','cal/').replace('_rate','_cal')
+					cal_file = fi.replace(f'Stage1{params.stage1_suffix}/','cal/').replace('_rate','_cal')
 					spec_mask = ~np.isnan(fits.getdata(cal_file))
 
 					# Create a few pixels' worth of buffer

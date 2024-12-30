@@ -35,10 +35,11 @@ def run(params):
 		print(f'{input_files}')
 
 		# Process each one through jwst pipeline module calwebb_detector1
-		outdir = f'{params.data_dir}{params.prog_id}/Obs{oo}/Stage1/'
+		outdir = f'{params.data_dir}{params.prog_id}/Obs{oo}/Stage1{params.stage1_suffix}/'
+		os.makedirs(f'{outdir}', exist_ok=True)
 		for i,fi in enumerate(input_files):
 			print(f'Processing file {i+1} of {nfiles}...')
-			Detector1Pipeline.call(fi, output_dir=outdir, save_results=True, steps=params.stage1_rules, logcfg=cfg_file)
+			Detector1Pipeline.call(fi, output_dir=outdir, save_results=True, save_calibrated_ramp=False, steps=params.stage1_rules, logcfg=cfg_file)
 
 	print('Stage 1 detector processing complete!')
 

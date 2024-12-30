@@ -25,6 +25,7 @@ params.download   = False		# If True, download data from MAST
 params.dwnld_all  = False		# If True, download all available data products. If False, only uncals are downloaded
 ## ========== Pipeline run settings ===========
 params.bkg_subtract = 'asn'		# Dedicated background subtraction (None or 'pixel' or 'asn')
+params.stage1_suffix = '_test0'	# Ending of Stage 1 file directory, used to distinguish between different data processing versions
 params.stage2_suffix = '_test0'	# Ending of Stage 2 file directory, used to distinguish between different data processing versions
 params.stage3_suffix = '_test0'	# Ending of Stage 3 file directory, used to distinguish between different data processing versions
 ## ============================================

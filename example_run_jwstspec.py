@@ -25,6 +25,7 @@ dwnld_all  = False				# If True, download all available data products. If False,
 readnoise_correct = 'nsclean'	# 'nsclean' is the pipeline-internal method, which is selected by default; otherwise, this can be None, 'constant' or 'moving_median'
 bkg_subtract = None				# Dedicated background subtraction (None or 'pixel' or 'asn')
 cube_align  = None				# If None, use default (sky coordinates). If 'ifu', use detector coordinates. If 'internal', keep cube aligned with IFU slices
+stage1_suffix = '_test0'		# Ending of Stage 1 file directory, used to distinguish between different data processing versions
 stage2_suffix = '_test0'		# Ending of Stage 2 file directory, used to distinguish between different data processing versions
 stage3_suffix = '_test0'		# Ending of Stage 3 file directory, used to distinguish between different data processing versions
 ## ==== Spectral extraction settings ==========
@@ -72,7 +73,7 @@ params.stage1_rules['jump'] = {'rejection_threshold' : 5.0}
 
 # Populate parameter values and do sanity checks
 params.add_params(prog_id, obs_numb, bkg_obs_numb, instrument, obs_type, tso_observation, dwnld_dir, data_dir, download, dwnld_all,
-			readnoise_correct, bkg_subtract, cube_align, stage2_suffix, stage3_suffix, extract_stage, extr_method, extr_suffix, extr_aper_rad,
+			readnoise_correct, bkg_subtract, cube_align, stage1_suffix, stage2_suffix, stage3_suffix, extract_stage, extr_method, extr_suffix, extr_aper_rad,
 			bkg_aper_in, bkg_aper_out, window_width, pix_sig_clip, bkg_sig_clip, fix_centroid, save_cleaned, spec_bkg_sub, spec_sig_clip, spec_window_half, special_defringe)
 
 ####### RUN PIPELINE #######
