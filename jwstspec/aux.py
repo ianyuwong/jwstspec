@@ -161,23 +161,36 @@ class ifu_cube(object):
 
 		# Otherwise, compute global flux centroid iteratively, using maximum flux location as initial guess
 		else:
-			# Restrict to central region due to high thermal backgrounds (MIRI) or FOV edge artifacts (NIRSpec)
-			trimmed_master = copy.deepcopy(self.master_frame)
-			new_mask = np.ones(np.shape(trimmed_master)).astype('bool')
-			new_mask[10:35,10:35] = False
-			trimmed_master.mask = np.logical_or(trimmed_master.mask, new_mask)
-			self.centr_guess = np.unravel_index(trimmed_master.argmax(),trimmed_master.shape)[::-1]
-			position = self.centr_guess
-			
-			iter = 0
-			test_radius = 3		# For MIRI, you need small aperture if source is near the edge...
-			while iter < 3:
-				aper = photutils.aperture.CircularAperture(position, r=test_radius)
-				stats = photutils.aperture.ApertureStats(self.master_frame, aper)
-				position = stats.centroid
-				iter += 1
+			# Get ordered list of brightest pixels
+			indx_sort = self.master_frame.argsort(fill_value=-np.inf, axis=None)[::-1]
 
-			# Use 2D Gaussian fit of local region for a more accurate centroid position
+			# Step through one by one and check if pixel is at the edge of FOV (usually hot pixel)
+			#		and derive initial centroid position guess
+			found = False
+			j = 0
+			while not found:
+				px, py = np.unravel_index(indx_sort[j], self.master_frame.shape)[::-1]
+				mask_sum = np.sum(self.master_frame.mask[max(0,py-1):min(py+2,self.ny), max(0,px-1):min(px+2,self.nx)])
+				if mask_sum == 0:
+					# Initial centroid guess
+					position = [px, py]		
+			
+					# Now, use iterative flux-weighted centroiding to adjust centroid guess
+					try:
+						iter = 0
+						test_radius = 3		# For MIRI, you need small aperture if source is near the edge...
+						while iter < 3:
+							aper = photutils.aperture.CircularAperture(position, r=test_radius)
+							stats = photutils.aperture.ApertureStats(self.master_frame, aper)
+							position = stats.centroid
+							iter += 1
+						found = True
+					except:
+						j += 1
+				else:
+					j += 1
+
+			# Finally, use 2D Gaussian fit of local region for a more accurate centroid position
 			box_range = int(test_radius)	# Half-length of subarray sides
 			position = position.astype('int')[::-1]
 			subarray = self.master_frame[position[0]-box_range:position[0]+box_range+1,position[1]-box_range:position[1]+box_range+1]
@@ -252,8 +265,8 @@ class ifu_cube(object):
 			ind = np.arange(len(px_array))
 			med_err = np.ma.median(px_array_err / px_array)
 
-			# Clip masked values and outliers in relative fluxerr
-			ww = np.where((px_array.mask == False) & (px_array_err / px_array < 10 * med_err))
+			# Clip masked values and major outliers in relative fluxerr
+			ww = np.where((px_array.mask == False) & (px_array_err / px_array < 20 * med_err))
 			clip = px_array[ww]
 			clip_err = px_array_err[ww]
 			clip_ind = ind[ww]
@@ -266,8 +279,8 @@ class ifu_cube(object):
 				tck = splrep(clip_ind, clip, w=1/clip_err, s=2*len(clip_ind))	# The smoothing threshold is set empirically to handle most datasets
 				diff = px_array - BSpline(*tck)(ind)
 
-				# Find and flag outliers in both flux and fluxerr, update masked cube
-				outlier_mask = (abs(diff) > self.pix_sig_clip * px_array_err) | (px_array_err > 100 * med_err)
+				# Find and flag outliers, update masked cube
+				outlier_mask = abs(diff) > self.pix_sig_clip * px_array_err
 				new_mask = np.logical_or(px_array.mask, outlier_mask)
 				self.cube_mask[:,yarr[i],xarr[i]] = new_mask
 
@@ -1062,6 +1075,9 @@ class params(object):
 		# Check instrument and observation type settings
 		if self.instrument not in ['nirspec', 'miri'] or self.obs_type not in ['ifu', 'slit', 'slitless']:
 			raise ValueError(f'Instrument configuration {self.instrument.upper()} {self.obs_type.upper()} not supported.')
+		if self.instrument == 'miri' and self.obs_type == 'slitless' and not self.tso_observation:
+			print('MIRI LRS slitless observations are TSOs. Changing tso_observation to True.')
+			self.tso_observation = True
 
 		# Check destriping method
 		if self.instrument == 'nirspec':
@@ -1234,8 +1250,9 @@ def select_spec_files(input_files, params):
 		if 'TA' in header['EXP_TYPE'] or 'IMAGE' in header['EXP_TYPE']:
 			select[i] = False
 
-		# Exclude NRS2 data files for PRISM and M-grating NIRSpec observations
-		if params.instrument == 'nirspec' and header['GRATING'][-1] != 'H' and header['DETECTOR'] == 'NRS2':
+		# Exclude NRS2 data files for PRISM, M-grating, and F070LP H-grating NIRSpec observations
+		if params.instrument == 'nirspec' and ((header['GRATING'][-1] != 'H' and header['DETECTOR'] == 'NRS2') | 
+			(header['GRATING'][-1] == 'H' and header['FILTER'] == 'F070LP')):
 			select[i] = False
 			
 	select_files = input_files[select]
@@ -1345,7 +1362,7 @@ def spec_combine(group, resultsdir, spec_bkg_sub=True, special_defringe=False, s
 			meta['extr_aper_rad'] = spectrum.extr_aper_rad
 			print(f"Working on {nspec} spectra in {meta['grating']} on {meta['detector']}...")
 
-		# Mask bad entries
+		# Mask bad flux entries
 		if hasattr(flux, 'mask'):
 			mask = flux.mask
 			flux = flux.data
@@ -1354,10 +1371,14 @@ def spec_combine(group, resultsdir, spec_bkg_sub=True, special_defringe=False, s
 			mask = np.zeros(len(wave))
 		mask[np.isnan(flux)] = 1
 		mask[flux == 0] = 1
-		mask[flux == 1e-8] = 1 					# points that were not handled in S3_special_defringe
+		mask[flux == 1e-8] = 1 				# points that were not handled in S3_special_defringe
 		mask[np.isnan(fluxerr)] = 1
-		mederr = np.nanmedian(fluxerr[flux != 0]/flux[flux != 0])
-		mask[fluxerr > 10*mederr*flux] = 1 		# anomalously large relative flux uncertainties
+
+		# Mask anomalously large flux uncertainties
+		select = np.where((flux!=0) & (fluxerr<np.nanpercentile(fluxerr,99)))
+		mederr, stderr = np.nanmedian(fluxerr[select]), np.nanstd(fluxerr[select])
+		mask[fluxerr > mederr + 10 * stderr] = 1
+		
 		flux = np.ma.array(flux, mask=mask)
 		fluxerr = np.ma.array(fluxerr, mask=mask)
 

@@ -6,8 +6,8 @@ import jwst
 print('Using JWST pipeline version {}'.format(jwst.__version__))
 import os
 
-# Specify CRDS context
-os.environ['CRDS_CONTEXT'] = 'jwst_1258.pmap'
+# Specify CRDS context (comment out to use most recent)
+# os.environ['CRDS_CONTEXT'] = 'jwst_1258.pmap'
 
 ## ==== Program and observation information ===
 prog_id    = '01272'			# JWST program number (must be five-digit string)
@@ -25,16 +25,16 @@ dwnld_all  = False				# If True, download all available data products. If False,
 readnoise_correct = 'nsclean'	# 'nsclean' is the pipeline-internal method, which is selected by default; otherwise, this can be None, 'constant' or 'moving_median'
 bkg_subtract = None				# Dedicated background subtraction (None or 'pixel' or 'asn')
 cube_align  = None				# If None, use default (sky coordinates). If 'ifu', use detector coordinates. If 'internal', keep cube aligned with IFU slices
-stage1_suffix = '_test0'		# Ending of Stage 1 file directory, used to distinguish between different data processing versions
-stage2_suffix = '_test0'		# Ending of Stage 2 file directory, used to distinguish between different data processing versions
-stage3_suffix = '_test0'		# Ending of Stage 3 file directory, used to distinguish between different data processing versions
+stage1_suffix = ''				# Ending of Stage 1 file directory, used to distinguish between different data processing versions
+stage2_suffix = ''				# Ending of Stage 2 file directory, used to distinguish between different data processing versions
+stage3_suffix = ''				# Ending of Stage 3 file directory, used to distinguish between different data processing versions
 ## ==== Spectral extraction settings ==========
 extract_stage = 'Stage2' 		# Stage of data files on which spectral extraction is performed
 extr_method   = 'PSF'			# PSF fitting ('PSF'), box ('box', only relevant for IFU data), or aperture ('aperture') extraction
 extr_suffix	  = ''	 			# Custom output directory suffix to distinguish between different extraction versions
 extr_aper_rad = 3				# Radius/half-length of circular/square extraction aperture centered around centroid 
 bkg_aper_in   = 10				# Inner dimension of background region
-bkg_aper_out  = 10				# Outer dimension of background region
+bkg_aper_out  = 12				# Outer dimension of background region
 window_width  = 10  			# Half-width of sliding window for PSF fitting (10 is default)
 pix_sig_clip  = 5.0 			# Sigma clip threshold for IFU cube pixel array outlier flagging (should generally be >4 to be safe)
 bkg_sig_clip  = 5.0 			# Sigma clip threshold for background outlier flagging (5.0 is the default)

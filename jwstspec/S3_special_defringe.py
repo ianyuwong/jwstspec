@@ -35,6 +35,11 @@ def run(params):
 		detector = spectrum.detector
 		nonzero_inds = np.where(flux != 0)[0]
 
+		# If there are no good points in spectrum, skip
+		if len(nonzero_inds) == 0:
+			print(f'No good points in spectrum!')
+			continue
+
 		# For Stage 2 products, extract the two channel segments within the spectrum
 		if params.extract_stage == 'Stage2':
 			split_ind = (nonzero_inds[1:] - nonzero_inds[:-1]).argmax()

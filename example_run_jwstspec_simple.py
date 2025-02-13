@@ -5,8 +5,8 @@ import jwst
 print('Using JWST pipeline version {}'.format(jwst.__version__))
 import os
 
-# Specify CRDS context
-os.environ['CRDS_CONTEXT'] = 'jwst_1258.pmap'
+# Specify CRDS context (comment out to use most recent)
+# os.environ['CRDS_CONTEXT'] = 'jwst_1258.pmap'
 
 # Initiate pipeline parameter object
 params = aux.params()
@@ -19,15 +19,15 @@ params.instrument = 'miri'		# 'miri'
 params.obs_type   = 'slitless'	# slit' or 'slitless' of 'ifu'
 params.tso_observation = True 	# Time-series observation
 ## ============ Directory settings ============
-params.dwnld_dir  = '/Users/iwong/Downloads/JWSTData/'								# User-set staging area for MAST downloads
+params.dwnld_dir  = '/Users/iwong/Downloads/JWSTData/'							# User-set staging area for MAST downloads
 params.data_dir   = '/Users/iwong/Documents/Astro/STScI/pipeline_testing/data/'	# Top-level directory for stored data and outputs
 params.download   = False		# If True, download data from MAST
 params.dwnld_all  = False		# If True, download all available data products. If False, only uncals are downloaded
 ## ========== Pipeline run settings ===========
 params.bkg_subtract = 'asn'		# Dedicated background subtraction (None or 'pixel' or 'asn')
-params.stage1_suffix = '_test0'	# Ending of Stage 1 file directory, used to distinguish between different data processing versions
-params.stage2_suffix = '_test0'	# Ending of Stage 2 file directory, used to distinguish between different data processing versions
-params.stage3_suffix = '_test0'	# Ending of Stage 3 file directory, used to distinguish between different data processing versions
+params.stage1_suffix = ''		# Ending of Stage 1 file directory, used to distinguish between different data processing versions
+params.stage2_suffix = ''		# Ending of Stage 2 file directory, used to distinguish between different data processing versions
+params.stage3_suffix = ''		# Ending of Stage 3 file directory, used to distinguish between different data processing versions
 ## ============================================
 
 # Choose which steps to run
@@ -41,20 +41,14 @@ run_stage3 = True			# Produce combined calibrated products
 params.stage1_rules['jump'] = {'rejection_threshold' : 5.0}
 # params.stage1_rules['emicorr'] = {'skip' : True}
 
-# params.stage2_rules['photom'] = {'override_photom' : '/Users/iwong/Documents/Astro/STScI/pipeline_testing/diagnostics/jwst_miri_photom_slit_240815.fits'}	
-# params.stage2_rules['photom'] = {'override_photom' : '/Users/iwong/Documents/Astro/STScI/pipeline_testing/diagnostics/jwst_miri_photom_slitless_240815.fits'}
-# # params.stage2_rules['photom'] = {'skip' : True}
-# params.stage2_rules['assign_wcs'] = {'override_specwcs' : '/Users/iwong/Documents/Astro/STScI/pipeline_testing/diagnostics/MIRI_FM_MIRIMAGE_P750L_SLITLESSPRISM_DISTORTION_10.00.01.fits'}
-# # params.stage2_rules['extract_1d'] = {'subtract_background' : True, "override_extract1d" : 'custom_lrs_extract1d.json'}	
-# params.stage2_rules['extract_1d'] = {'override_apcorr' : '/Users/iwong/Documents/Astro/STScI/pipeline_testing/diagnostics/MIRI_FM_MIRIMAGE_P750L_APCORR_240815_OPSF_flight_corr.fits'}
-# # params.stage2_rules['pixel_replace'] = {'skip' : False}
+# params.stage2_rules['photom'] = {'skip' : True}
+# params.stage2_rules['extract_1d'] = {'subtract_background' : True, "override_extract1d" : 'custom_lrs_extract1d.json'}	
+# params.stage2_rules['pixel_replace'] = {'skip' : False}
 
 # params.stage3_rules['outlier_detection'] = {'skip' : True}	
 # params.stage3_rules['outlier_detection'] = {'save_intermediate_results' : True}	
-# # params.stage3_rules = {'outlier_detection' : {'snr' : '15.0 15.0'}}	# Raise outlier detection thresholds
-# # params.stage3_rules['extract_1d'] = {'subtract_background' : True, "override_extract1d" : 'custom_lrs_extract1d.json'}	
-# params.stage3_rules['extract_1d'] = {'override_apcorr' : '/Users/iwong/Documents/Astro/STScI/pipeline_testing/diagnostics/MIRI_FM_MIRIMAGE_P750L_APCORR_240815_OPSF_flight_corr.fits'}
-
+# params.stage3_rules = {'outlier_detection' : {'snr' : '15.0 15.0'}}	# Raise outlier detection thresholds
+# params.stage3_rules['extract_1d'] = {'subtract_background' : True, "override_extract1d" : 'custom_lrs_extract1d.json'}	
 
 ## ============================================
 ## ============================================
