@@ -178,7 +178,7 @@ class ifu_cube(object):
 					# Now, use iterative flux-weighted centroiding to adjust centroid guess
 					try:
 						iter = 0
-						test_radius = 3		# For MIRI, you need small aperture if source is near the edge...
+						test_radius = 2		# For MIRI, you need small aperture if source is near the edge...
 						while iter < 3:
 							aper = photutils.aperture.CircularAperture(position, r=test_radius)
 							stats = photutils.aperture.ApertureStats(self.master_frame, aper)
@@ -188,11 +188,12 @@ class ifu_cube(object):
 					except:
 						j += 1
 				else:
+					self.master_frame[py, px] = np.nan
 					j += 1
 
 			# Finally, use 2D Gaussian fit of local region for a more accurate centroid position
 			box_range = int(test_radius)	# Half-length of subarray sides
-			position = position.astype('int')[::-1]
+			position = np.around(position).astype('int')[::-1]
 			subarray = self.master_frame[position[0]-box_range:position[0]+box_range+1,position[1]-box_range:position[1]+box_range+1]
 			self.centroid = photutils.centroids.centroid_2dg(subarray) + position[::-1] - box_range
 
@@ -588,25 +589,30 @@ class ifu_cube(object):
 		threshold = np.nanpercentile(maskimg.filled(np.nan), 5)
 		maskimg[np.ma.where(maskimg<threshold)] = threshold
 
-		fig = plt.figure(figsize=(5,5))
+		fig = plt.figure(figsize=(9,9))
 		ax = fig.add_subplot(111)
 		ax.imshow(maskimg,norm=colors.PowerNorm(0.2),cmap='viridis',origin='lower')
-		ax.plot(self.centroid[0],self.centroid[1],'k.',ms=6)
-		circ1 = Circle(xy=(self.centroid[0],self.centroid[1]),radius=self.bkg_aper_in,facecolor='none',edgecolor='red',linestyle='-')
-		ax.add_artist(circ1)
-		circ2 = Circle(xy=(self.centroid[0],self.centroid[1]),radius=self.bkg_aper_out,facecolor='none',edgecolor='red',linestyle='-')
-		ax.add_artist(circ2)
-		circ3 = Circle(xy=(self.centroid[0],self.centroid[1]),radius=self.extr_aper_rad,facecolor='none',edgecolor='black',linestyle='-')
+		ax.plot(self.centroid[0],self.centroid[1],'k.',ms=8)
+		if self.extr_method == 'aperture':
+			circ1 = Circle(xy=(self.centroid[0],self.centroid[1]),radius=self.bkg_aper_in,facecolor='none',edgecolor='red',linestyle='-')
+			ax.add_artist(circ1)
+			circ2 = Circle(xy=(self.centroid[0],self.centroid[1]),radius=self.bkg_aper_out,facecolor='none',edgecolor='red',linestyle='-')
+			ax.add_artist(circ2)
+		circ3 = Circle(xy=(self.centroid[0],self.centroid[1]),radius=self.extr_aper_rad,facecolor='none',edgecolor='black',linestyle='-', linewidth=2)
 		ax.add_artist(circ3)
 		ax.xaxis.set_major_locator(MultipleLocator(10))
 		ax.yaxis.set_major_locator(MultipleLocator(10))
 		ax.xaxis.set_minor_locator(MultipleLocator(5))
 		ax.yaxis.set_minor_locator(MultipleLocator(5))
-		ax.tick_params(labelsize=12)
-		ax.set_xlabel('x [px]',fontsize=14)
-		ax.set_ylabel('y [px]',fontsize=14)
+		ax.tick_params(axis='both', labelsize=18, which='major', direction='in', length=8, width=2)
+		ax.tick_params(axis='both', labelsize=18, which='minor', direction='in', length=5, width=1)
+		ax.tick_params(bottom=True, top=True, left=True, right=True)
+		for axis in ['top','bottom','left','right']:
+			ax.spines[axis].set_linewidth(2)
+		ax.set_xlabel('x [px]',fontsize=20)
+		ax.set_ylabel('y [px]',fontsize=20)
 
-		plt.savefig(outf)
+		plt.savefig(outf, bbox_inches='tight')
 		plt.close()
 
 #============================================================================================================
@@ -655,18 +661,18 @@ class slit_spectrum(object):
 			self.slit_length = self.nx
 			self.spec_length = self.ny
 
-		# Mask out bad pixels
-		self.image_mask = (self.img == 0)|(np.isnan(self.img))
-
 		# Exchange axes of MIRI LRS for ease in processing
 		if self.inst == 'MIRI':
 			self.img = self.img.T
 			self.err = self.err.T
 
+		# Mask out bad pixels
+		self.image_mask = (self.img == 0)|(np.isnan(self.img))
+
 		# Mask negative trace in case of pairwise nod subtraction
 		if nod_subtract:
-			collapsed = np.ma.median(np.ma.array(self.img, mask=self.image_mask), axis=1)
-			min_loc = collapsed.argmin()
+			collapsed = np.ma.median(np.ma.array(self.img[5:-5,:], mask=self.image_mask[5:-5,:]), axis=1)
+			min_loc = collapsed.argmin() + 5
 			self.custom_mask = np.zeros(self.img.shape).astype('bool')
 			self.custom_mask[min_loc-8:min_loc+7,:] = True
 			if self.inst == 'MIRI':
@@ -717,6 +723,7 @@ class slit_spectrum(object):
 		print(f"Working on {self.filename}...")
 
 		# Save extraction parameters in object
+		self.extr_method = extr_method
 		self.extr_aper_rad = extr_aper_rad
 		self.bkg_aper_in = bkg_aper_in
 		self.bkg_aper_out = bkg_aper_out
@@ -726,9 +733,9 @@ class slit_spectrum(object):
 		self.window_width = window_width
 
 		# Define output directory
-		if extr_method == 'aperture':
-			self.outputdir = f'{self.outputbase}{self.extr_aper_rad}_{self.bkg_aper_in}_{self.bkg_aper_out}{self.suffix}/'
-		elif extr_method == 'PSF':
+		if self.extr_method == 'aperture':
+			self.outputdir = f'{self.outputbase}aper_{self.extr_aper_rad}_{self.bkg_aper_in}_{self.bkg_aper_out}{self.suffix}/'
+		elif self.extr_method == 'PSF':
 			self.outputdir = f'{self.outputbase}PSF_{self.extr_aper_rad}_{self.bkg_aper_in}{self.suffix}/'
 		os.makedirs(self.outputdir, exist_ok=True)
 
@@ -736,7 +743,7 @@ class slit_spectrum(object):
 		self.master_array = np.ma.median(self.mask_img, axis=1)
 
 		# Use specified centroid position, if supplied
-		if self.fix_centroid is not None:
+		if self.fix_centroid is not None and type(self.fix_centroid) is not str:
 			self.centroid = self.fix_centroid
 
 		# Otherwise, compute global flux centroid
@@ -745,10 +752,17 @@ class slit_spectrum(object):
 				return back + peak * np.exp(-(x - centr) ** 2 / (2 * sigma ** 2))
 
 			res = curve_fit(gauss, np.arange(self.slit_length), self.master_array, 
-	    		p0=[np.min(self.master_array), np.max(self.master_array), self.master_array.argmax(), 3])[0]
+	    		p0=[np.ma.median(self.master_array), np.ma.max(self.master_array[5:-5]), self.master_array[5:-5].argmax()+5, 3])[0]
 			self.psf_model = gauss(np.arange(self.slit_length), res[0], res[1], res[2], res[3])
 			self.centroid = res[2]
-			# self.centroid = self.master_array.argmax()
+
+		# Shift centroid if relative offset given
+		if self.fix_centroid is not None and type(self.fix_centroid) is str:
+			self.centroid = self.centroid + float(self.fix_centroid)
+			print(f"Offset centroid coordinates given. Extracting spectrum using {self.slit_direction} = {'{:.3f}'.format(self.centroid)}")
+
+		self.centr_int = round(self.centroid)
+			
 		print(f"Global centroid: {self.slit_direction} = {'{:.3f}'.format(self.centroid)}")
 
 		# Extract spectrum
@@ -790,17 +804,17 @@ class slit_spectrum(object):
 			box_width2 = self.bkg_aper_in
 			sub_col = np.ma.median(self.mask_img[:,i-self.window_width:i+self.window_width+1], axis=1)
 			sub_col2 = copy.deepcopy(sub_col)
-			sub_col2.mask[max(0,round(self.centroid)-box_width2):round(self.centroid)+box_width2+1] = True
+			sub_col2.mask[max(0,self.centr_int-box_width2):self.centr_int+box_width2+1] = True
 			master_subbkg = (sub_col - np.ma.median(sub_col2)).data
 			mask = np.zeros(master_subbkg.shape).astype('bool')
-			mask[max(0,round(self.centroid)-box_width):round(self.centroid)+box_width+1] = True
+			mask[max(0,self.centr_int-box_width):self.centr_int+box_width+1] = True
 			master_subbkg[mask == False] = 0
 			self.psf_int = master_subbkg / np.sum(master_subbkg)
 
 			# Define fitting region mask
 			fit_mask = np.zeros(self.psf_int.shape).astype('bool')
-			fit_mask[max(0,round(self.centroid)-box_width2):round(self.centroid)+box_width2+1] = True
-			fit_mask[max(0,round(self.centroid)-box_width):round(self.centroid)+box_width+1] = False
+			fit_mask[max(0,self.centr_int-box_width2):self.centr_int+box_width2+1] = True
+			fit_mask[max(0,self.centr_int-box_width):self.centr_int+box_width+1] = False
 
 			# Iterative least-squares fitting
 			iter = 0
@@ -833,7 +847,7 @@ class slit_spectrum(object):
 
 			# Calculate flux uncertainty using weighted error array with background contribution
 			aper_mask = np.ones(len(col)).astype('bool')
-			aper_mask[max(0,round(self.centroid)-box_width):round(self.centroid)+box_width+1] = False
+			aper_mask[max(0,self.centr_int-box_width):rself.centr_int+box_width+1] = False
 			weight_err = np.ma.MaskedArray(np.sqrt((model/np.max(model) * err)**2 + bkg_shot_noise**2), mask=aper_mask)
 
 			# Between the optimization flux uncertainty estimate and the weighted error, choose the larger one
@@ -849,12 +863,12 @@ class slit_spectrum(object):
 			print(f'Bkg = {"{:.4f}".format(bkg[i])}')
 
 			# Flag wavelength slice if there is at least one masked point within fitting aperture
-			aper_mask_sum = np.sum(col.mask[int(self.centroid)-box_width:int(self.centroid)+box_width+1])
+			aper_mask_sum = np.sum(col.mask[self.centr_int-box_width:self.centr_int+box_width+1])
 			if aper_mask_sum > 0:
 				mask_aper[i] = 1
 
 			# Flag wavelength slice if there is at least one masked point within 3 pixels of centroid
-			close_mask_sum = np.sum(col.mask[int(self.centroid)-3:int(self.centroid)+4])
+			close_mask_sum = np.sum(col.mask[self.centr_int-3:self.centr_int+4])
 			if close_mask_sum > 0:
 				mask_close[i] = 1
 
@@ -869,13 +883,12 @@ class slit_spectrum(object):
 	    '''
 
 		# Establish extraction regions
-		centr_int = round(self.centroid)
-		self.aper_low = max(centr_int - self.extr_aper_rad, 0)
-		self.aper_high = min(centr_int + self.extr_aper_rad + 1, self.slit_length)
-		self.back_a1 = max(centr_int - self.bkg_aper_out, 0)
-		self.back_a2 = max(centr_int - self.bkg_aper_in + 1, 0)
-		self.back_b1 = min(centr_int + self.bkg_aper_in, self.slit_length)
-		self.back_b2 = min(centr_int + self.bkg_aper_out + 1, self.slit_length)
+		self.aper_low = max(self.centr_int - self.extr_aper_rad, 0)
+		self.aper_high = min(self.centr_int + self.extr_aper_rad + 1, self.slit_length)
+		self.back_a1 = max(self.centr_int - self.bkg_aper_out, 0)
+		self.back_a2 = max(self.centr_int - self.bkg_aper_in + 1, 0)
+		self.back_b1 = min(self.centr_int + self.bkg_aper_in, self.slit_length)
+		self.back_b2 = min(self.centr_int + self.bkg_aper_out + 1, self.slit_length)
 		extr_region = self.mask_img[self.aper_low:self.aper_high]
 		extr_region_err = self.mask_err[self.aper_low:self.aper_high]
 		bkg_region = np.concatenate([self.mask_img[self.back_a1:self.back_a2], self.mask_img[self.back_b1:self.back_b2]])
@@ -1054,7 +1067,7 @@ class params(object):
 
 	def sanity_check(self):
 		'''
-		Do a quick check to make sure parameter settings aren't conflicting or unreasonable
+		Check to make sure parameter settings are reasonable and not conflicting
 		'''
 
 		# Define affix for different data types and custom destriping methods
@@ -1091,6 +1104,7 @@ class params(object):
 			if self.bkg_obs_numb is None:
 				raise ValueError(f'Must provide background observation number if bkg_subtract is specified.')
 
+		# Check extraction settings
 		if hasattr(self, 'extract_stage'):	
 			# Check extract_stage
 			if self.extract_stage not in ['Stage2', 'Stage3']:
@@ -1258,6 +1272,81 @@ def select_spec_files(input_files, params):
 	select_files = input_files[select]
 
 	return select_files
+
+
+def sort_spec_files(sci_files, bkg_files, params):
+	'''
+	Sorts input science and bkg files by band/grating and detector 
+	Checks grating wheel tilt values (NIRSpec only)
+
+	Parameters
+	----------
+	input_files : numpy.ndarray
+	   	List of input files.
+	params : obj
+		Pipeline run parameters object.
+ 
+	Returns
+	-------
+	sci_groups, bkg_groups : list
+   		Lists of sorted files.
+   	tilt_check : bool
+   		Flag for whether the files pass the grating wheel tilt tolerance.
+	'''
+
+	# Sort by band/grating and detector
+	if params.obs_type == 'ifu':
+		if params.instrument == 'nirspec':
+			key = 'GRATING'
+		else:
+			key = 'BAND'
+		# Use grating and detector
+		bands = np.array(['SHORT','SHORT','MEDIUM','MEDIUM','LONG','LONG','PRISM','G140M','G235M','G395M','G140H','G140H','G235H','G235H','G395H','G395H'])
+		detectors = np.array(['MIRIFUSHORT','MIRIFULONG','MIRIFUSHORT','MIRIFULONG','MIRIFUSHORT','MIRIFULONG','NRS1','NRS1','NRS1','NRS1','NRS1','NRS2','NRS1','NRS2','NRS1','NRS2'])
+	else:
+		key = 'FILTER'
+		# Use filter and detector
+		bands = np.array(['CLEAR','P750L'])
+		detectors = np.array(['NRS2','MIRIMAGE'])
+	ncomb = len(bands)
+	sci_groups = [np.zeros(0).astype('str'), ] * ncomb
+	bkg_groups = [np.zeros(0).astype('str'), ] * ncomb
+
+	# Populate groups and collect grating wheel assembly tilt values (for NIRSpec)
+	sci_gwa_xtil = np.zeros(ncomb)		
+	sci_gwa_ytil = np.zeros(ncomb)
+	bkg_gwa_xtil = np.zeros(ncomb)		
+	bkg_gwa_ytil = np.zeros(ncomb)
+	for fi in sci_files:
+		header_sci = fits.getheader(fi, 'PRIMARY')
+		band, detector = header_sci[key], header_sci['DETECTOR']
+		w = np.where((bands == band) & (detectors == detector))[0][0]
+		sci_groups[w] = np.append(sci_groups[w],fi)
+		if params.instrument == 'nirspec':
+			sci_gwa_xtil[w] = header_sci['GWA_XTIL']
+			sci_gwa_ytil[w] = header_sci['GWA_YTIL']
+	for fi in bkg_files:
+		header_bkg = fits.getheader(fi, 'PRIMARY')
+		band, detector = header_bkg[key], header_bkg['DETECTOR']
+		w = np.where((bands == band) & (detectors == detector))[0][0]
+		bkg_groups[w] = np.append(bkg_groups[w],fi)
+		if params.instrument == 'nirspec':
+			bkg_gwa_xtil[w] = header_bkg['GWA_XTIL']
+			bkg_gwa_ytil[w] = header_bkg['GWA_YTIL']
+
+	# For NIRSpec, check to see if grating wheel tilt values allow for association-based background subtraction
+	if params.instrument == 'nirspec' and params.bkg_subtract == 'asn':
+		tolerance = 1.0e-8		# Same tolerance as JWST calibration pipeline
+		diff_xtil = np.absolute(sci_gwa_xtil - bkg_gwa_xtil)
+		diff_ytil = np.absolute(sci_gwa_ytil - bkg_gwa_ytil)
+
+		# If tolerance not met, use manual pixel-by-pixel subtraction instead
+		if np.max(diff_xtil) > tolerance:
+			tilt_check = False
+		else:
+			tilt_check = True
+
+	return sci_groups, bkg_groups, tilt_check
 
 
 def read_cubes(input_files, suffix=''):

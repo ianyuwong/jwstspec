@@ -95,9 +95,9 @@ if run_stage1:
 	if params.instrument == 'nirspec' and params.readnoise_correct is not None:
 		params = S1_noise_correct.run(params)
 
-	# Handle background subtraction, if needed
-	if params.bkg_subtract is not None:
-		params = S1_bkg_subtract.run(params)
+# Handle background subtraction, if needed
+if params.bkg_subtract is not None:
+	params = S1_bkg_subtract.run(params)
 
 ## STAGE 2
 if run_stage2:

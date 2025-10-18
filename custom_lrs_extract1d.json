@@ -13,8 +13,8 @@
         {
         "id": "MIR_LRS-FIXEDSLIT",
         "region_type": "target",
-	"bkg_fit": "poly",
-        "bkg_order": 1,
+	"bkg_fit": "median",
+        "bkg_order": 0,
         "dispaxis": 2,
         "xstart": 27,
         "xstop": 34,
@@ -30,7 +30,7 @@
         "dispaxis": 2,
         "xstart": 30,
         "xstop": 41,
-	"bkg_coeff" : [[9.5],[17.5],[54.5],[62.5]],
+	"bkg_coeff" : [[9.5],[17.5],[53.5],[61.5]],
         "use_source_posn": false
         }
     ]

@@ -21,7 +21,7 @@ params.tso_observation = True 	# Time-series observation
 ## ============ Directory settings ============
 params.dwnld_dir  = '/Users/iwong/Downloads/JWSTData/'							# User-set staging area for MAST downloads
 params.data_dir   = '/Users/iwong/Documents/Astro/STScI/pipeline_testing/data/'	# Top-level directory for stored data and outputs
-params.download   = False		# If True, download data from MAST
+params.download   = True		# If True, download data from MAST
 params.dwnld_all  = False		# If True, download all available data products. If False, only uncals are downloaded
 ## ========== Pipeline run settings ===========
 params.bkg_subtract = 'asn'		# Dedicated background subtraction (None or 'pixel' or 'asn')
@@ -70,9 +70,9 @@ if run_stage1:
 	# Run calwebb_detector1 and produce countrate files
 	params = S1_stage1_process.run(params)
 
-	# Handle background subtraction, if needed
-	if params.bkg_subtract is not None:
-		params = S1_bkg_subtract.run(params)
+# Handle background subtraction, if needed
+if params.bkg_subtract is not None:
+	params = S1_bkg_subtract.run(params)
 
 ## STAGE 2
 if run_stage2:

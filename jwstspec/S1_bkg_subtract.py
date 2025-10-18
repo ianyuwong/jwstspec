@@ -8,7 +8,7 @@ from jwst.background.background_sub import background_sub
 from jwst import datamodels
 from . import aux
 
-def run(params):
+def run(params, run_stage1):
 	'''
 	This function handles background subtraction for all modes, either through direct pixel-by-pixel subtraction or ASN file creation.
 
@@ -16,6 +16,8 @@ def run(params):
     ----------
     params : obj
     	Object containing all parameter settings for pipeline run.
+    run_stage1 : bool
+    	If True, Stage 1 processing was included in this run.
 	'''
 
 	# Define input science and background file directories
@@ -27,7 +29,7 @@ def run(params):
 	else:
 		nod = False
 
-	# Get files
+	# Get files and sort
 	vers = ''
 	if params.tso_observation:
 		vers += 'ints'
@@ -42,63 +44,77 @@ def run(params):
 	bkg_files = aux.select_spec_files(np.array(sorted(glob(f'{bkg_dir}*_rate{vers}.fits'))), params)
 	nscifiles = len(sci_files)
 	nbkgfiles = len(bkg_files)
-	if nscifiles == 0:
-		raise Warning(f'ERROR: no science data files found in Obs{params.obs_numb} Stage1 directory!')
-	if nbkgfiles == 0:
-		raise Warning(f'ERROR: no background data files found in Obs{params.bkg_obs_numb} Stage1 directory!')
+	if run_stage1:
+		if nscifiles == 0:
+			raise Warning(f'ERROR: no science data files found in Obs{params.obs_numb} Stage1 directory!')
+		if nbkgfiles == 0:
+			raise Warning(f'ERROR: no background data files found in Obs{params.bkg_obs_numb} Stage1 directory!')
 
-	# Sort by band/grating and detector
-	if params.obs_type == 'ifu':
-		if params.instrument == 'nirspec':
-			key = 'GRATING'
-		else:
-			key = 'BAND'
-		# Use grating and detector
-		bands = np.array(['SHORT','SHORT','MEDIUM','MEDIUM','LONG','LONG','PRISM','G140M','G235M','G395M','G140H','G140H','G235H','G235H','G395H','G395H'])
-		detectors = np.array(['MIRIFUSHORT','MIRIFULONG','MIRIFUSHORT','MIRIFULONG','MIRIFUSHORT','MIRIFULONG','NRS1','NRS1','NRS1','NRS1','NRS1','NRS2','NRS1','NRS2','NRS1','NRS2'])
-	else:
-		key = 'FILTER'
-		# Use filter and detector
-		bands = np.array(['CLEAR','P750L'])
-		detectors = np.array(['NRS2','MIRIMAGE'])
-	ncomb = len(bands)
-	sci_groups = [np.zeros(0).astype('str'), ] * ncomb
-	bkg_groups = [np.zeros(0).astype('str'), ] * ncomb
+	# Sort by band/grating and detector and check for grating wheel tilt
+	sci_groups, bkg_groups, tilt_check = aux.sort_spec_files(sci_files, bkg_files, params)
+	ncomb = len(sci_groups)
+	
+	if params.instrument == 'nirspec' and params.bkg_subtract == 'asn' and tilt_check == False:
+		print('WARNING: Relative grating wheel assembly tilts for science and background observations not within tolerance!')
+		print('Switching over to bkg_subtract = "pixel" method')
+		params.bkg_subtract = 'pixel'
+		params.vers = params.vers.replace('asn', 'pixel')
+			
+	if not run_stage1:
+		return params
+	
+	# # Sort by band/grating and detector
+	# if params.obs_type == 'ifu':
+	# 	if params.instrument == 'nirspec':
+	# 		key = 'GRATING'
+	# 	else:
+	# 		key = 'BAND'
+	# 	# Use grating and detector
+	# 	bands = np.array(['SHORT','SHORT','MEDIUM','MEDIUM','LONG','LONG','PRISM','G140M','G235M','G395M','G140H','G140H','G235H','G235H','G395H','G395H'])
+	# 	detectors = np.array(['MIRIFUSHORT','MIRIFULONG','MIRIFUSHORT','MIRIFULONG','MIRIFUSHORT','MIRIFULONG','NRS1','NRS1','NRS1','NRS1','NRS1','NRS2','NRS1','NRS2','NRS1','NRS2'])
+	# else:
+	# 	key = 'FILTER'
+	# 	# Use filter and detector
+	# 	bands = np.array(['CLEAR','P750L'])
+	# 	detectors = np.array(['NRS2','MIRIMAGE'])
+	# ncomb = len(bands)
+	# sci_groups = [np.zeros(0).astype('str'), ] * ncomb
+	# bkg_groups = [np.zeros(0).astype('str'), ] * ncomb
 
-	# Populate groups and collect grating wheel assembly tilt values (for NIRSpec)
-	sci_gwa_xtil = np.zeros(ncomb)		
-	sci_gwa_ytil = np.zeros(ncomb)
-	bkg_gwa_xtil = np.zeros(ncomb)		
-	bkg_gwa_ytil = np.zeros(ncomb)
-	for fi in sci_files:
-		header_sci = fits.getheader(fi, 'PRIMARY')
-		band, detector = header_sci[key], header_sci['DETECTOR']
-		w = np.where((bands == band) & (detectors == detector))[0][0]
-		sci_groups[w] = np.append(sci_groups[w],fi)
-		if params.instrument == 'nirspec':
-			sci_gwa_xtil[w] = header_sci['GWA_XTIL']
-			sci_gwa_ytil[w] = header_sci['GWA_YTIL']
-	for fi in bkg_files:
-		header_bkg = fits.getheader(fi, 'PRIMARY')
-		band, detector = header_bkg[key], header_bkg['DETECTOR']
-		w = np.where((bands == band) & (detectors == detector))[0][0]
-		bkg_groups[w] = np.append(bkg_groups[w],fi)
-		if params.instrument == 'nirspec':
-			bkg_gwa_xtil[w] = header_bkg['GWA_XTIL']
-			bkg_gwa_ytil[w] = header_bkg['GWA_YTIL']
+	# # Populate groups and collect grating wheel assembly tilt values (for NIRSpec)
+	# sci_gwa_xtil = np.zeros(ncomb)		
+	# sci_gwa_ytil = np.zeros(ncomb)
+	# bkg_gwa_xtil = np.zeros(ncomb)		
+	# bkg_gwa_ytil = np.zeros(ncomb)
+	# for fi in sci_files:
+	# 	header_sci = fits.getheader(fi, 'PRIMARY')
+	# 	band, detector = header_sci[key], header_sci['DETECTOR']
+	# 	w = np.where((bands == band) & (detectors == detector))[0][0]
+	# 	sci_groups[w] = np.append(sci_groups[w],fi)
+	# 	if params.instrument == 'nirspec':
+	# 		sci_gwa_xtil[w] = header_sci['GWA_XTIL']
+	# 		sci_gwa_ytil[w] = header_sci['GWA_YTIL']
+	# for fi in bkg_files:
+	# 	header_bkg = fits.getheader(fi, 'PRIMARY')
+	# 	band, detector = header_bkg[key], header_bkg['DETECTOR']
+	# 	w = np.where((bands == band) & (detectors == detector))[0][0]
+	# 	bkg_groups[w] = np.append(bkg_groups[w],fi)
+	# 	if params.instrument == 'nirspec':
+	# 		bkg_gwa_xtil[w] = header_bkg['GWA_XTIL']
+	# 		bkg_gwa_ytil[w] = header_bkg['GWA_YTIL']
 
-	# For NIRSpec, check to see if grating wheel tilt values allow for association-based background subtraction
-	if params.instrument == 'nirspec' and params.bkg_subtract == 'asn':
-		tolerance = 1.0e-8		# Same tolerance as JWST calibration pipeline
-		diff_xtil = np.absolute(sci_gwa_xtil - bkg_gwa_xtil)
-		diff_ytil = np.absolute(sci_gwa_ytil - bkg_gwa_ytil)
+	# # For NIRSpec, check to see if grating wheel tilt values allow for association-based background subtraction
+	# if params.instrument == 'nirspec' and params.bkg_subtract == 'asn':
+	# 	tolerance = 1.0e-8		# Same tolerance as JWST calibration pipeline
+	# 	diff_xtil = np.absolute(sci_gwa_xtil - bkg_gwa_xtil)
+	# 	diff_ytil = np.absolute(sci_gwa_ytil - bkg_gwa_ytil)
 
-		# If tolerance not met, use manual pixel-by-pixel subtraction instead
-		if np.max(diff_xtil) > tolerance:
-			print('WARNING: Relative grating wheel assembly tilts for science and background observations not within tolerance!')
-			print('Switching over to bkg_subtract == "pixel" method')
-			params.bkg_subtract = 'pixel'
-			params.vers.replace('asn', 'pixel')
+	# 	# If tolerance not met, use manual pixel-by-pixel subtraction instead
+	# 	if np.max(diff_xtil) > tolerance:
+	# 		print('WARNING: Relative grating wheel assembly tilts for science and background observations not within tolerance!')
+	# 		print('Switching over to bkg_subtract == "pixel" method')
+	# 		params.bkg_subtract = 'pixel'
+	# 		params.vers.replace('asn', 'pixel')
 
 	## Method 1: Subtract average background pixel-by-pixel for each science file
 	if params.bkg_subtract == 'pixel':
