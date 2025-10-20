@@ -7,9 +7,6 @@ from jwst.pipeline.calwebb_spec3 import Spec3Pipeline
 import os
 from . import aux
 
-current_dir = os.path.dirname(__file__)
-cfg_file = os.path.join(current_dir, 'log.cfg')
-
 def run(params):
 	'''
 	This function runs Stage 3 of the JWST pipeline.
@@ -66,10 +63,16 @@ def run(params):
 			rule = Asn_Lv3MIRMRS
 		else:
 			rule = Asn_Lv3SpectralTarget
+
+	print(f'Stage 3: Running calwebb_spec3 pipeline...')
+
+	# Define output directory
 	outdir = f'{params.data_dir}{params.prog_id}/Obs{params.obs_numb}/Stage3{params.stage3_suffix}/'
 	os.makedirs(f'{outdir}', exist_ok=True)
 
-	print(f'Stage 3: Running calwebb_spec3 pipeline...')
+	# Get logger
+	log = aux.config_logger(outdir)
+
 	# Custom step rules for various input types and specifications
 	if params.obs_type == 'ifu':
 		# Turn autocentroiding on
@@ -114,7 +117,7 @@ def run(params):
 		f.close()
 
 		# Process ASN file through jwst pipeline module calwebb_spec3
-		Spec3Pipeline.call(output_file, output_dir=outdir, save_results=True, steps=params.stage3_rules, logcfg=cfg_file)
+		Spec3Pipeline.call(output_file, output_dir=outdir, save_results=True, steps=params.stage3_rules, configure_log=False)
 
 	print('Stage 3 processing complete!')
 

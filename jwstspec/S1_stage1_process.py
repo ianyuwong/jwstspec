@@ -5,9 +5,6 @@ import astropy.io.fits as fits
 import os
 from . import aux
 
-current_dir = os.path.dirname(__file__)
-cfg_file = os.path.join(current_dir, 'log.cfg')
-
 def run(params):
 	'''
 	This function runs Stage 1 of the JWST pipeline on the uncalibrated data.
@@ -34,12 +31,17 @@ def run(params):
 		print(f'Stage 1: processing {nfiles} files from Obs{oo}:')
 		print(f'{input_files}')
 
-		# Process each one through jwst pipeline module calwebb_detector1
+		# Define output directory
 		outdir = f'{params.data_dir}{params.prog_id}/Obs{oo}/Stage1{params.stage1_suffix}/'
 		os.makedirs(f'{outdir}', exist_ok=True)
+
+		# Get logger
+		log = aux.config_logger(outdir)
+
+		# Process each one through jwst pipeline module calwebb_detector1
 		for i,fi in enumerate(input_files):
 			print(f'Processing file {i+1} of {nfiles}...')
-			Detector1Pipeline.call(fi, output_dir=outdir, save_results=True, save_calibrated_ramp=False, steps=params.stage1_rules, logcfg=cfg_file)
+			Detector1Pipeline.call(fi, output_dir=outdir, save_results=True, save_calibrated_ramp=False, steps=params.stage1_rules, configure_log=False)
 
 	print('Stage 1 detector processing complete!')
 

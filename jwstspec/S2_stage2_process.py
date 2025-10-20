@@ -4,9 +4,6 @@ import numpy as np
 from jwst.pipeline.calwebb_spec2 import Spec2Pipeline
 from . import aux
 
-current_dir = os.path.dirname(__file__)
-cfg_file = os.path.join(current_dir, 'log.cfg')
-
 def run(params):
 	'''
 	This function runs Stage 2 of the JWST pipeline on the countrate data.
@@ -24,10 +21,14 @@ def run(params):
 		input_files = np.array(sorted(glob(f'{params.data_dir}{params.prog_id}/Obs{params.obs_numb}/Stage1{params.stage1_suffix}/*_rate{params.vers}.json')))
 	nfiles = len(input_files)
 
-	# Process each one through jwst pipeline module calwebb_spec2
 	print(f'Stage 2: Calibrating frames and building Level 2 spectrum products for {nfiles} files...')
+
+	# Define output directory
 	outdir = f'{params.data_dir}{params.prog_id}/Obs{params.obs_numb}/Stage2{params.stage2_suffix}/'
 	os.makedirs(f'{outdir}', exist_ok=True)
+
+	# Get logger
+	log = aux.config_logger(outdir)
 
 	# Custom step rules for various input types and specifications
 	if params.obs_type == 'ifu':
@@ -51,6 +52,7 @@ def run(params):
 	if params.bkg_subtract == 'asn':
 		params.stage2_rules['bkg_subtract'] = {'skip' : False}		# Make sure pipeline runs the ASN background subtraction routine
 
+	# Process each one through jwst pipeline module calwebb_spec2
 	for i,fi in enumerate(input_files):
 		print(f'Processing file {i+1} of {nfiles}...')
 		# Set distinct output file base, in case of ASN-based background subtraction
@@ -60,7 +62,7 @@ def run(params):
 			output_file_base = None
 		
 		# Pipeline call
-		Spec2Pipeline.call(fi, output_file=output_file_base, output_dir=outdir, save_results=True, steps=params.stage2_rules, logcfg=cfg_file)
+		Spec2Pipeline.call(fi, output_file=output_file_base, output_dir=outdir, save_results=True, steps=params.stage2_rules, configure_log=False)
 
 	print('Stage 2 spectrum build complete!')
 

@@ -7,9 +7,6 @@ from jwst.pipeline.calwebb_tso3 import Tso3Pipeline
 import os
 from . import aux
 
-current_dir = os.path.dirname(__file__)
-cfg_file = os.path.join(current_dir, 'log.cfg')
-
 def run(params):
 	'''
 	This function runs Stage 3 of the JWST pipeline for TSO observations.
@@ -30,11 +27,15 @@ def run(params):
 			input_files = np.array(sorted(glob(f'{params.data_dir}{params.prog_id}/Obs{params.obs_numb}/Stage2{params.stage2_suffix}/*[e]_calints.fits')))
 	input_files = aux.select_spec_files(input_files, params)
 
+	print(f'Stage 3: Running calwebb_tso3 pipeline...')
+
 	# Define output directory
 	outdir = f'{params.data_dir}{params.prog_id}/Obs{params.obs_numb}/Stage3{params.stage3_suffix}/'
 	os.makedirs(f'{outdir}', exist_ok=True)
 
-	print(f'Stage 3: Running calwebb_tso3 pipeline...')
+	# Get logger
+	log = aux.config_logger(outdir)
+
 	# Make association
 	filt = fits.getheader(input_files[0], 'PRIMARY')['FILTER']
 	asn_name = f'jw{params.prog_id}-o{params.obs_numb}_t001_{params.instrument}_{filt.lower()}'
@@ -52,7 +53,7 @@ def run(params):
 	f.close()
 
 	# Process ASN file through jwst pipeline module calwebb_tso3
-	Tso3Pipeline.call(output_file, output_dir=outdir, save_results=True, steps=params.stage3_rules, logcfg=cfg_file)
+	Tso3Pipeline.call(output_file, output_dir=outdir, save_results=True, steps=params.stage3_rules, configure_log=False)
 
 	print('Stage 3 processing complete!')
 

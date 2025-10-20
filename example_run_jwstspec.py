@@ -97,7 +97,7 @@ if run_stage1:
 
 # Handle background subtraction, if needed
 if params.bkg_subtract is not None:
-	params = S1_bkg_subtract.run(params)
+	params = S1_bkg_subtract.run(params, run_stage1)
 
 ## STAGE 2
 if run_stage2:

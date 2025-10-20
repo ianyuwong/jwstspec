@@ -14,13 +14,14 @@ from astropy.visualization import imshow_norm, LogStretch
 import pickle
 import copy
 import os
+import sys
+import logging
 import datetime
 import warnings
 import photutils
 
 #Suppress non-critical warnings
 warnings.filterwarnings('ignore', category=UserWarning, append=True)
-
 
 #============================================================================================================
 #%%%%%%%%%% OBJECT CLASSES %%%%%%%%%%
@@ -1239,6 +1240,45 @@ def move_files(dwnld_dir, data_dir, prog_id, obs_numb, obs_type, dwnld_all):
 		f.write(logstr)
 
 
+def config_logger(outdir):
+	'''
+	Initiates and formats logger for pipeline runs
+
+	Parameters
+    ----------
+    outdir : str
+   		Path to output directory.
+
+	Returns
+	-------
+	log : func
+   		Logging function.
+
+	'''
+
+	# Make a stream handler to just print ERROR level messages to console
+	stream_handler = logging.StreamHandler(stream=sys.stdout)
+	formatter = logging.Formatter("%(name)s - %(levelname)s - %(message)s")
+	stream_handler.setFormatter(formatter)
+	stream_handler.setLevel(logging.ERROR)
+
+	# Make a file handler for all INFO messages, time-stamped
+	file_handler = logging.FileHandler(f"{outdir}run.log")
+	formatter = logging.Formatter("%(asctime)s - %(name)s - %(levelname)s - %(message)s")
+	file_handler.setFormatter(formatter)
+	file_handler.setLevel(logging.INFO)
+
+	# Get the root logger and allow all messages through
+	log = logging.getLogger()
+	log.setLevel(logging.DEBUG)
+
+	# Attach the handlers
+	log.addHandler(file_handler)
+	log.addHandler(stream_handler)
+
+	return log
+
+
 def select_spec_files(input_files, params):
 	'''
 	Selects for only the spectroscopic data files with science data from a list of input files
@@ -1345,6 +1385,8 @@ def sort_spec_files(sci_files, bkg_files, params):
 			tilt_check = False
 		else:
 			tilt_check = True
+	else:
+		tilt_check = None
 
 	return sci_groups, bkg_groups, tilt_check
 

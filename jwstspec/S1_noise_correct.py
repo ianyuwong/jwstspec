@@ -5,6 +5,7 @@ import jwst.pipeline.calwebb_spec2 as pipe
 import scipy.ndimage as nd
 import numpy as np
 import copy
+from . import aux
 
 def run(params):
 	'''
@@ -43,15 +44,14 @@ def run(params):
 
 			# For NSClean, run the files through the first three steps of the calwebb_spec2 pipeline module and save outputs
 			if params.readnoise_correct == 'nsclean':
-				import os
-				current_dir = os.path.dirname(__file__)
-				cfg_file = os.path.join(current_dir, 'log.cfg')
+				# Get output directory and logger
+				outdir = f'{params.data_dir}{params.prog_id}/Obs{oo}/Stage1{params.stage1_suffix}/'			
+				log = aux.config_logger(outdir)
 
-				outdir = f'{params.data_dir}{params.prog_id}/Obs{oo}/Stage1{params.stage1_suffix}/'
-				result = pipe.assign_wcs_step.AssignWcsStep.call(fi, logcfg=cfg_file)
+				result = pipe.assign_wcs_step.AssignWcsStep.call(fi, configure_log=False)
 				if params.obs_type == 'ifu':
-					result = pipe.msaflagopen_step.MSAFlagOpenStep.call(result, logcfg=cfg_file)
-				result = pipe.nsclean_step.NSCleanStep.call(result, skip=False, save_results=True, output_dir=outdir, suffix='ratecorr0', logcfg=cfg_file)
+					result = pipe.msaflagopen_step.MSAFlagOpenStep.call(result, configure_log=False)
+				result = pipe.nsclean_step.NSCleanStep.call(result, skip=False, save_results=True, output_dir=outdir, suffix='ratecorr0', configure_log=False)
 
 			# Otherwise, manually destripe each file
 			else:
