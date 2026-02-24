@@ -21,7 +21,7 @@ import warnings
 import photutils
 
 #Suppress non-critical warnings
-warnings.filterwarnings('ignore', category=UserWarning, append=True)
+warnings.filterwarnings('ignore', category=Warning, append=True)
 
 #============================================================================================================
 #%%%%%%%%%% OBJECT CLASSES %%%%%%%%%%
@@ -1508,7 +1508,7 @@ def spec_combine(group, resultsdir, spec_bkg_sub=True, special_defringe=False, s
 		# Mask anomalously large flux uncertainties
 		select = np.where((flux!=0) & (fluxerr<np.nanpercentile(fluxerr,99)))
 		mederr, stderr = np.nanmedian(fluxerr[select]), np.nanstd(fluxerr[select])
-		mask[fluxerr > mederr + 10 * stderr] = 1
+		mask[fluxerr > mederr + 20 * stderr] = 1
 		
 		flux = np.ma.array(flux, mask=mask)
 		fluxerr = np.ma.array(fluxerr, mask=mask)
