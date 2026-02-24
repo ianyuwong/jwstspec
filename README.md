@@ -13,7 +13,7 @@ Users should make copies of those files to edit and run.
 ### Installation
 We recommend that users first create and activate a new conda environment:
 ```
-conda create -n <env_name> python=3.11
+conda create -n <env_name> python=3.12
 conda activate <env_name>
 ```
 If needed, install required packages (see below for list of packages):
