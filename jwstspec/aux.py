@@ -5,7 +5,7 @@ import matplotlib as mpl
 mpl.use('tkagg')
 import matplotlib.pyplot as plt
 import matplotlib.colors as colors
-from matplotlib.patches import Circle
+from matplotlib.patches import Circle, Rectangle
 from matplotlib.widgets import RectangleSelector
 from matplotlib.ticker import MultipleLocator
 from scipy.optimize import curve_fit, leastsq
@@ -103,9 +103,10 @@ class ifu_cube(object):
 
 		Parameters
 	   	----------
-	    extr_aper_rad : float or int
-	    	Radius of circular extraction aperture, in pixels,
+	    extr_aper_rad : float or int or list
+	    	Radius/half-length of circula/square extraction aperture, in pixels,
 	      	centered on the computed centroid position.
+	      	If list, inner and outer boundaries of annular extraction region.
 	    bkg_aper_in : float or int
 	      	Inner radius, in pixels, of background extraction region for aperture photometry.
 	    bkg_aper_out : float or int
@@ -142,6 +143,12 @@ class ifu_cube(object):
 		self.bkg_sig_clip = bkg_sig_clip
 		self.window_width = window_width
 		self.save_cleaned = save_cleaned
+
+		# Check if annular extraction is requested
+		if isinstance(self.extr_aper_rad, str):
+			self.annulus = True 
+		else:
+			self.annulus = False
 			
 		# Define output directory
 		if self.extr_method == 'aperture':
@@ -179,7 +186,7 @@ class ifu_cube(object):
 					# Now, use iterative flux-weighted centroiding to adjust centroid guess
 					try:
 						iter = 0
-						test_radius = 2		# For MIRI, you need small aperture if source is near the edge...
+						test_radius = 2		# For MIRI, need small aperture if source is near the edge...
 						while iter < 3:
 							aper = photutils.aperture.CircularAperture(position, r=test_radius)
 							stats = photutils.aperture.ApertureStats(self.master_frame, aper)
@@ -316,13 +323,28 @@ class ifu_cube(object):
 		Carries out flux extraction from a box with background subtraction.
 		'''
 
-		# Extract flux, background from box centered on rounded centroid pixel
+		# Initialize data arrays
 		flux = np.zeros(self.nimgs)
 		flux_bkg = np.zeros(self.nimgs)
 		fluxerr = np.zeros(self.nimgs)
 		bkg = np.zeros(self.nimgs)
 		mask_aper = np.zeros(self.nimgs)		# Mask-in-aperture flag array
 		mask_close = np.zeros(self.nimgs)		# Mask-close-to-center flag array
+
+		# Define background and extraction regions
+		if not self.annulus:
+			box_width = self.extr_aper_rad
+		else:
+			box_width1, box_width2 = [int(i) for i in self.extr_aper_rad.split('A')]
+		bkg_width = self.bkg_aper_in
+		extr_mask = np.zeros(self.mask_imgs[0].shape).astype('bool')
+		if self.annulus:
+			extr_mask[max(0,self.centroidy-box_width2):self.centroidy+box_width2+1, max(0,self.centroidx-box_width2):self.centroidx+box_width2+1] = True
+			extr_mask[max(0,self.centroidy-box_width1):self.centroidy+box_width1+1, max(0,self.centroidx-box_width1):self.centroidx+box_width1+1] = False
+		else:
+			extr_mask[max(0,self.centroidy-box_width):self.centroidy+box_width+1, max(0,self.centroidx-box_width):self.centroidx+box_width+1] = True
+		
+		# Extract flux, background from box centered on rounded centroid pixel
 		for i in range(self.nimgs):
 			# Skip slice if it is all zeros or masked values (NaNs)
 			if np.ma.sum(self.mask_imgs[i]) == 0 or np.sum(self.mask_imgs[i].mask) == self.nx*self.ny:
@@ -334,24 +356,19 @@ class ifu_cube(object):
 			err = self.mask_errs[i] * rescale
 
 			# Calculate background and mask out-of-box pixels
-			box_width = self.extr_aper_rad
-			box_width2 = self.bkg_aper_in
-			sub_cube = img
-			sub_cube2 = copy.deepcopy(sub_cube)
-			sub_cube2.mask[max(0,self.centroidy-box_width2):self.centroidy+box_width2+1, max(0,self.centroidx-box_width2):self.centroidx+box_width2+1] = True
-			master_subbkg = (sub_cube - np.ma.median(sub_cube2)).data
-			mask = np.zeros(master_subbkg.shape).astype('bool')
-			mask[max(0,self.centroidy-box_width):self.centroidy+box_width+1, max(0,self.centroidx-box_width):self.centroidx+box_width+1] = True
-			master_subbkg[mask == False] = 0
+			bkg_img = copy.deepcopy(img)
+			bkg_img.mask[max(0,self.centroidy-bkg_width):self.centroidy+bkg_width+1, max(0,self.centroidx-bkg_width):self.centroidx+bkg_width+1] = True
+			master_subbkg = img - np.ma.median(bkg_img)
+			master_subbkg.mask[extr_mask == False] = True
 
 			# Populate arrays
-			bkg[i] = np.ma.median(sub_cube2)
-			flux[i] = np.sum(master_subbkg)
-			flux_bkg[i] = np.ma.sum(sub_cube[mask == True])
-			fluxerr[i] = np.sqrt(np.ma.sum(err[mask == True] ** 2))
+			bkg[i] = np.ma.median(bkg_img)
+			flux[i] = np.ma.sum(master_subbkg)
+			flux_bkg[i] = np.ma.sum(img[extr_mask == True])
+			fluxerr[i] = np.sqrt(np.ma.sum(err[extr_mask == True] ** 2))
 
 			# Flag wavelength slice if there is at least one masked point within fitting aperture
-			aper_mask_sum = np.sum(img.mask[self.centroidy-box_width:self.centroidy+box_width+1, self.centroidx-box_width:self.centroidx+box_width+1])
+			aper_mask_sum = np.sum(img.mask[extr_mask == True])
 			if aper_mask_sum > 0:
 				mask_aper[i] = 1
 
@@ -381,8 +398,20 @@ class ifu_cube(object):
 		mask_aper = np.zeros(self.nimgs)		# Mask-in-aperture flag array
 		mask_close = np.zeros(self.nimgs)		# Mask-close-to-center flag array
 
+		# Define PSF, background, and extraction aperture regions
+		bkg_width = self.bkg_aper_in	
+		if not self.annulus:
+			extr_aper = photutils.aperture.CircularAperture(self.centroid, r=self.extr_aper_rad)
+			psf_region_width = int(np.round(self.extr_aper_rad))
+		else:
+			extr_aper_rad1, extr_aper_rad2 = [float(i) for i in self.extr_aper_rad.split('A')]
+			extr_aper = photutils.aperture.CircularAnnulus(self.centroid, r_in=extr_aper_rad1, r_out=extr_aper_rad2)
+			psf_region_width = int(np.round(extr_aper_rad2))
+		psf_mask = np.zeros(self.mask_imgs[0].shape).astype('bool')
+		psf_mask[max(0,self.centroidy-psf_region_width):self.centroidy+psf_region_width+1, max(0,self.centroidx-psf_region_width):self.centroidx+psf_region_width+1] = True
+
 		# Carry out iterative PSF fitting with outlier flagging for every wavelength slice one by one
-		for i in range(self.window_width,self.nimgs-self.window_width-1):
+		for i in range(self.window_width, self.nimgs-self.window_width-1):
 			# Skip slice if it is all zeros or masked values (NaNs)
 			if np.ma.sum(self.mask_imgs[i]) == 0 or np.sum(self.mask_imgs[i].mask) == self.nx*self.ny:
 				continue
@@ -393,21 +422,17 @@ class ifu_cube(object):
 			err = copy.deepcopy(self.mask_errs[i]) * rescale
 
 			# Create template PSF
-			box_width = int(np.round(self.extr_aper_rad))
-			box_width2 = self.bkg_aper_in
-			sub_cube = np.ma.median(self.mask_imgs[i-self.window_width:i+self.window_width+1,:,:], axis=0)
-			sub_cube2 = copy.deepcopy(sub_cube)
-			sub_cube2.mask[max(0,self.centroidy-box_width2):self.centroidy+box_width2+1, max(0,self.centroidx-box_width2):self.centroidx+box_width2+1] = True
-			master_subbkg = (sub_cube - np.ma.median(sub_cube2)).data
-			mask = np.zeros(master_subbkg.shape).astype('bool')
-			mask[max(0,self.centroidy-box_width):self.centroidy+box_width+1, max(0,self.centroidx-box_width):self.centroidx+box_width+1] = True
-			master_subbkg[mask == False] = 0
+			img_frame = np.ma.median(self.mask_imgs[i-self.window_width:i+self.window_width+1,:,:], axis=0)
+			bkg_frame = copy.deepcopy(img_frame)
+			bkg_frame.mask[max(0,self.centroidy-bkg_width):self.centroidy+bkg_width+1, max(0,self.centroidx-bkg_width):self.centroidx+bkg_width+1] = True
+			master_subbkg = img_frame - np.ma.median(bkg_frame)
+			master_subbkg[psf_mask == False] = 0
 			self.psf_int = master_subbkg / np.ma.sum(master_subbkg)			
 
 			# Define fitting region mask
 			fit_mask = np.zeros(img.shape).astype('bool')
-			fit_mask[max(0,self.centroidy-box_width2):self.centroidy+box_width2+1, max(0,self.centroidx-box_width2):self.centroidx+box_width2+1] = True
-			fit_mask[max(0,self.centroidy-box_width):self.centroidy+box_width+1, max(0,self.centroidx-box_width):self.centroidx+box_width+1] = False
+			fit_mask[max(0,self.centroidy-bkg_width):self.centroidy+bkg_width+1, max(0,self.centroidx-bkg_width):self.centroidx+bkg_width+1] = True
+			fit_mask[psf_mask == True] = False
 
 			# Iterative least-squares fitting
 			iter = 0
@@ -430,32 +455,27 @@ class ifu_cube(object):
 				print(f'Skipping...PSF fitting did not converge!')
 				continue
 
-			# flux_aper[i] = np.sum(model)												# Integrated flux of best-fit PSF model
-			# flux_aper_bkg[i] = np.sum(model_bkg)										# Integrated PSF flux with background level added (not really used)	
-			# bkg_per_pixel[i] = res[0][1]												# Best-fit background level
-
 			# Convert background level to counts for shot noise calculation
 			bkg_per_pixel[i] = res[0][1]												# Best-fit background level
 			uJy_per_cts	= self.header['PHOTMJSR'] * self.header['PIXAR_SR'] / self.meta['EFFEXPTM'] * rescale
 			bkg_shot_noise = np.sqrt(abs(bkg_per_pixel[i]) * uJy_per_cts)				
 
 			# Calculate flux uncertainty using weighted error array with background contribution
-			# aper_mask = np.ones(img.shape).astype('bool')
-			# aper_mask[self.centroidy-box_width:self.centroidy+box_width+1, self.centroidx-box_width:self.centroidx+box_width+1] = False
-			# weight_err = np.ma.MaskedArray(np.sqrt((model/np.max(model) * err)**2 + bkg_shot_noise**2), mask=aper_mask)
 			weight_err = np.ma.MaskedArray(np.sqrt((model/np.max(model) * err)**2 + bkg_shot_noise**2))
 
-			# Define extraction aperture and carry out circular aperture extraction on the best-fit PSF model
-			extr_aper = photutils.aperture.CircularAperture(self.centroid, r=self.extr_aper_rad)
+			# Carry out circular aperture extraction on the best-fit PSF model
 			aper_stats = photutils.aperture.ApertureStats(model, extr_aper, error=weight_err)
 			aper_stats_bkg = photutils.aperture.ApertureStats(model_bkg, extr_aper, error=weight_err)
 			flux_aper[i] = aper_stats.sum
 			flux_aper_bkg[i] = aper_stats_bkg.sum
 			bkg_aper[i] = bkg_per_pixel[i] * aper_stats.sum_aper_area.value
 
-			# Between the optimization flux uncertainty estimate and the total weighted error, choose the larger one
-			flux_choices = [np.sqrt(res[1][0][0]), aper_stats.sum_err]	
-			fluxerr_aper[i] = max(flux_choices)										# Total flux error
+			# # Between the optimization flux uncertainty estimate and the total weighted error, choose the larger one
+			# fluxerr_choices = [np.sqrt(res[1][0][0]), aper_stats.sum_err]	
+			# fluxerr_aper[i] = max(fluxerr_choices)										# Total flux error
+
+			# Use the total weighted error as the flux uncertainty
+			fluxerr_aper[i] = aper_stats.sum_err
 
 			print(f'Slice {i+1} of {self.nimgs}, {"{:.4f}".format(self.wave[i])} nm')
 			print(f'Flux = {"{:.4f}".format(flux_aper[i])}')
@@ -463,7 +483,7 @@ class ifu_cube(object):
 			print(f'Bkg = {"{:.4f}".format(bkg_aper[i])}')
 
 			# Flag wavelength slice if there is at least one masked point within fitting aperture
-			aper_mask_sum = np.sum(img.mask[self.centroidy-box_width:self.centroidy+box_width+1, self.centroidx-box_width:self.centroidx+box_width+1])
+			aper_mask_sum = np.sum(img.mask[self.centroidy-psf_region_width:self.centroidy+psf_region_width+1, self.centroidx-psf_region_width:self.centroidx+psf_region_width+1])
 			if aper_mask_sum > 0:
 				mask_aper[i] = 1
 
@@ -498,6 +518,16 @@ class ifu_cube(object):
 		self.imgs[np.isnan(self.imgs)] = 0.0
 		self.errs[np.isnan(self.errs)] = 0.0
 
+		# Define aperture regions
+		sigclip = SigmaClip(sigma=self.bkg_sig_clip, maxiters=None)
+		if not self.annulus:
+			extr_aper = photutils.aperture.CircularAperture(self.centroid, r=self.extr_aper_rad)
+		else:
+			extr_aper_rad1, extr_aper_rad2 = [float(i) for i in self.extr_aper_rad.split('A')]
+			extr_aper = photutils.aperture.CircularAnnulus(self.centroid, r_in=extr_aper_rad1, r_out=extr_aper_rad2)
+		close_aper = photutils.aperture.CircularAperture(self.centroid, r=3)
+		back_aper = photutils.aperture.CircularAnnulus(self.centroid, r_in=self.bkg_aper_in, r_out=self.bkg_aper_out)
+
 		# Cycle through wavelength slices to calculate background, and extract flux
 		for i in range(self.nimgs):
 
@@ -511,11 +541,7 @@ class ifu_cube(object):
 			# Mask flagged values
 			mask = self.cube_mask[i]
 
-			# Define apertures and extract aperture information
-			sigclip = SigmaClip(sigma=self.bkg_sig_clip, maxiters=None)
-			extr_aper = photutils.aperture.CircularAperture(self.centroid, r=self.extr_aper_rad)
-			close_aper = photutils.aperture.CircularAperture(self.centroid, r=3)
-			back_aper = photutils.aperture.CircularAnnulus(self.centroid, r_in=self.bkg_aper_in, r_out=self.bkg_aper_out)
+			# Carry out aperture extraction		
 			aper_stats = photutils.aperture.ApertureStats(img, extr_aper, error=err, mask=mask, sigma_clip=None)
 			bkg_stats = photutils.aperture.ApertureStats(img, back_aper, mask=mask, sigma_clip=sigclip)
 			mask_stats = photutils.aperture.ApertureStats(mask, extr_aper)
@@ -580,9 +606,10 @@ class ifu_cube(object):
 
 	def master_plot(self):
 		'''
-		Plots the master frame with annotated centroid and apertures for circular aperture extraction
+		Plots the master frame with annotated centroid and apertures
 		'''
 
+		# Output file
 		outf = f'{self.outputdir}Visit{self.visit}_{self.grating}_{self.detector}_exp{self.exposure}_masterframe.pdf'
 
 		# Flatten low outliers
@@ -590,17 +617,45 @@ class ifu_cube(object):
 		threshold = np.nanpercentile(maskimg.filled(np.nan), 5)
 		maskimg[np.ma.where(maskimg<threshold)] = threshold
 
+		# Plot
 		fig = plt.figure(figsize=(9,9))
 		ax = fig.add_subplot(111)
 		ax.imshow(maskimg,norm=colors.PowerNorm(0.2),cmap='viridis',origin='lower')
 		ax.plot(self.centroid[0],self.centroid[1],'k.',ms=8)
+
+		# Add extraction aperture overlays
+		if self.extr_method != 'box':
+			if self.annulus:
+				extr_aper_rad1, extr_aper_rad2 = [float(i) for i in self.extr_aper_rad.split('A')]
+				circ = Circle(xy=(self.centroid[0],self.centroid[1]),radius=extr_aper_rad1,facecolor='none',edgecolor='black',linestyle='-', linewidth=2)
+				ax.add_artist(circ)
+				circ = Circle(xy=(self.centroid[0],self.centroid[1]),radius=extr_aper_rad2,facecolor='none',edgecolor='black',linestyle='-', linewidth=2)
+				ax.add_artist(circ)
+			else:
+				circ = Circle(xy=(self.centroid[0],self.centroid[1]),radius=self.extr_aper_rad,facecolor='none',edgecolor='black',linestyle='-', linewidth=2)
+				ax.add_artist(circ)
+		else:
+			if self.annulus:
+				box_width1, box_width2 = [int(i) for i in self.extr_aper_rad.split('A')]
+				box = Rectangle(xy=(self.centroidx-box_width1-0.5,self.centroidy-box_width1-0.5),width=2*box_width1+1,height=2*box_width1+1,facecolor='none',edgecolor='black',linestyle='-', linewidth=2)
+				ax.add_artist(box)
+				box = Rectangle(xy=(self.centroidx-box_width2-0.5,self.centroidy-box_width2-0.5),width=2*box_width2+1,height=2*box_width2+1,facecolor='none',edgecolor='black',linestyle='-', linewidth=2)
+				ax.add_artist(box)
+			else:
+				box = Rectangle(xy=(self.centroidx-self.extr_aper_rad-0.5,self.centroidy-self.extr_aper_rad-0.5),width=2*self.extr_aper_rad+1,height=2*self.extr_aper_rad+1,facecolor='none',edgecolor='black',linestyle='-', linewidth=2)
+				ax.add_artist(box)
+
+		# Add background region overlays
 		if self.extr_method == 'aperture':
-			circ1 = Circle(xy=(self.centroid[0],self.centroid[1]),radius=self.bkg_aper_in,facecolor='none',edgecolor='red',linestyle='-')
-			ax.add_artist(circ1)
-			circ2 = Circle(xy=(self.centroid[0],self.centroid[1]),radius=self.bkg_aper_out,facecolor='none',edgecolor='red',linestyle='-')
-			ax.add_artist(circ2)
-		circ3 = Circle(xy=(self.centroid[0],self.centroid[1]),radius=self.extr_aper_rad,facecolor='none',edgecolor='black',linestyle='-', linewidth=2)
-		ax.add_artist(circ3)
+			circ = Circle(xy=(self.centroid[0],self.centroid[1]),radius=self.bkg_aper_in,facecolor='none',edgecolor='red',linestyle='-')
+			ax.add_artist(circ)
+			circ = Circle(xy=(self.centroid[0],self.centroid[1]),radius=self.bkg_aper_out,facecolor='none',edgecolor='red',linestyle='-')
+			ax.add_artist(circ)
+		else:
+			box = Rectangle(xy=(self.centroidx-self.bkg_aper_in-0.5,self.centroidy-self.bkg_aper_in-0.5),width=2*self.bkg_aper_in+1,height=2*self.bkg_aper_in+1,facecolor='none',edgecolor='red',linestyle='-', linewidth=2)
+			ax.add_artist(box)
+
+		# Additional formatting
 		ax.xaxis.set_major_locator(MultipleLocator(10))
 		ax.yaxis.set_major_locator(MultipleLocator(10))
 		ax.xaxis.set_minor_locator(MultipleLocator(5))
@@ -613,6 +668,7 @@ class ifu_cube(object):
 		ax.set_xlabel('x [px]',fontsize=20)
 		ax.set_ylabel('y [px]',fontsize=20)
 
+		# Save figure
 		plt.savefig(outf, bbox_inches='tight')
 		plt.close()
 
@@ -696,12 +752,12 @@ class slit_spectrum(object):
 		Parameters
 		----------
 		extr_aper_rad : float or int; optional
-			Radius of circular extraction aperture, in pixels,
+			Half-width of extraction aperture, in pixels,
 			centered on the computed centroid position.
 		bkg_aper_in : float or int; optional
-	    	Inner radius, in pixels, of background extraction region for aperture photometry.
+	    	Inner boundary, in pixels, of background extraction region for aperture photometry.
 		bkg_aper_out : float or int; optional
-			Outer radius, in pixels, of background extraction region for aperture photometry.
+			Outer boundary, in pixels, of background extraction region for aperture photometry.
 			Should be at least a few pixels larger than bkg_aper_in.
 		fix_centroid : float or int; optional
 			User-specified centroid position to be used for extraction.
@@ -1049,7 +1105,12 @@ class params(object):
 		self.extract_stage = extract_stage
 		self.extr_method = extr_method
 		self.extr_suffix = extr_suffix
-		self.extr_aper_rad = extr_aper_rad
+		if isinstance(extr_aper_rad, (int, float)):
+			self.extr_aper_rad = extr_aper_rad
+		else:
+			self.extr_aper_rad = f'{extr_aper_rad[0]}A{extr_aper_rad[1]}'
+			if self.extr_method == 'box' and (not isinstance(extr_aper_rad[0], int) or not isinstance(extr_aper_rad[1], int)):
+				raise TypeError(f'Aperture sizes for box extraction must be integers.')
 		self.bkg_aper_in = bkg_aper_in
 		self.bkg_aper_out = bkg_aper_out
 		self.window_width = window_width
@@ -1097,6 +1158,9 @@ class params(object):
 		if self.instrument == 'nirspec':
 			if self.readnoise_correct not in [None, 'nsclean', 'constant', 'moving_median']:
 				raise ValueError(f'Destriping method {self.destriping} not recognized.')
+		else:
+			if self.readnoise_correct is not None:
+				raise ValueError(f'No destriping permitted for instrument = {self.instrument}')
 
 		# Check bkg_subtract method
 		if self.bkg_subtract is not None:
@@ -1120,12 +1184,16 @@ class params(object):
 				else:
 					stop
 
+			# For slit observations, disallow annular extractions
+			if self.obs_type == 'slit' and isinstance(self.extr_aper_rad, str):
+				raise ValueError(f'Annular extraction not allowed for slit observations.')
+
 			# For box and IFU extraction methods and all slit spectrum extractions, enforce integer aperture size requirement
 			if self.extr_method == 'PSF':
 				if not isinstance(self.bkg_aper_in, int):
 					raise TypeError(f'Background aperture size for PSF extraction must be an integer.')
 			if self.extr_method == 'box':
-				if not isinstance(self.extr_aper_rad, int) or not isinstance(self.bkg_aper_in, int):
+				if not isinstance(self.extr_aper_rad, (int,str)) or not isinstance(self.bkg_aper_in, int):
 					raise TypeError(f'Aperture sizes for box extraction must be integers.')
 			if self.obs_type == 'slit':
 				if not isinstance(self.extr_aper_rad, int) or not isinstance(self.bkg_aper_in, int) or not isinstance(self.bkg_aper_out, int):
@@ -1508,7 +1576,7 @@ def spec_combine(group, resultsdir, spec_bkg_sub=True, special_defringe=False, s
 		# Mask anomalously large flux uncertainties
 		select = np.where((flux!=0) & (fluxerr<np.nanpercentile(fluxerr,99)))
 		mederr, stderr = np.nanmedian(fluxerr[select]), np.nanstd(fluxerr[select])
-		mask[fluxerr > mederr + 20 * stderr] = 1
+		mask[fluxerr > mederr + spec_sig_clip * stderr] = 1
 		
 		flux = np.ma.array(flux, mask=mask)
 		fluxerr = np.ma.array(fluxerr, mask=mask)

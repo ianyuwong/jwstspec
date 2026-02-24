@@ -55,8 +55,7 @@ def run(params):
 			bkg_sig_clip=params.bkg_sig_clip, pix_sig_clip=params.pix_sig_clip, extr_method=params.extr_method, window_width=params.window_width, save_cleaned=params.save_cleaned)
 
 		# Create wavelength-stacked plot
-		if params.extr_method == 'aperture':
-			inp.master_plot()
+		inp.master_plot()
 
 	print('Stage 3 spectral extraction complete!')
 
