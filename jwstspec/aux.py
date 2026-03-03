@@ -1155,11 +1155,10 @@ class params(object):
 			self.tso_observation = True
 
 		# Check destriping method
-		if self.instrument == 'nirspec':
-			if self.readnoise_correct not in [None, 'nsclean', 'constant', 'moving_median']:
+		if hasattr(self, 'readnoise_correct'):
+			if self.instrument == 'nirspec' and self.readnoise_correct not in [None, 'nsclean', 'constant', 'moving_median']:
 				raise ValueError(f'Destriping method {self.destriping} not recognized.')
-		else:
-			if self.readnoise_correct is not None:
+			elif self.instrument == 'miri' and self.readnoise_correct is not None:
 				raise ValueError(f'No destriping permitted for instrument = {self.instrument}')
 
 		# Check bkg_subtract method
