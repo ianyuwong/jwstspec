@@ -34,6 +34,16 @@ class ifu_cube(object):
 	'''
 
 	def __init__(self, filename, suffix=''):
+		'''
+		Initiates IFU cube object
+
+		Parameters
+	   	----------
+	   	filename : str
+	   		Path to file.
+	   	suffix : str; optional
+	   		Unique suffix to distinguish between different processing runs.
+	   	'''
 
 		# Populate the ifu_cube object with data and header information
 		self.longname = filename
@@ -42,15 +52,15 @@ class ifu_cube(object):
 		self.hdulist = copy.deepcopy(hdulist)
 		hdulist.close()
 
-		self.meta = self.hdulist['PRIMARY',1].header			# Primary header metadata
+		self.meta = self.hdulist['PRIMARY',1].header	# Primary header metadata
 		self.inst = self.meta['INSTRUME']
 		self.detector = self.meta['DETECTOR']
-		self.header = self.hdulist['SCI',1].header	# Header of SCI array
-		self.imgs = self.hdulist['SCI',1].data		# Flux values
-		self.errs = self.hdulist['ERR',1].data		# Flux errors
-		self.dqs = self.hdulist['DQ',1].data 		# Data quality flags
+		self.header = self.hdulist['SCI',1].header		# Header of SCI array
+		self.imgs = self.hdulist['SCI',1].data			# Flux values
+		self.errs = self.hdulist['ERR',1].data			# Flux errors
+		self.dqs = self.hdulist['DQ',1].data 			# Data quality flags
 		self.nimgs = len(self.imgs)
-		self.pxscale = self.header['CDELT1']	# Pixel scale (in degrees)
+		self.pxscale = self.header['CDELT1']			# Pixel scale (in degrees)
 		self.nx = self.header['NAXIS1']
 		self.ny = self.header['NAXIS2']
 		self.program = self.meta['PROGRAM']
@@ -69,8 +79,8 @@ class ifu_cube(object):
 			self.conv_factor = self.header['PIXAR_SR']	# Convert to MJy
 			self.imgs *= self.conv_factor
 			self.errs *= self.conv_factor
-			self.header['PHOTMJSR'] = 1.0 			# Fix to 1.0 for all IFU observations
-													#	Some observations had wrong values saved
+			self.header['PHOTMJSR'] = 1.0 				# Fix to 1.0 for all IFU observations
+														# Some observations had wrong values saved
 
 		self.visit = self.meta['VISIT']
 		self.exposure = self.meta['EXPOSURE'].zfill(2)
@@ -583,25 +593,56 @@ class ifu_cube(object):
 
 	def resid_eval(self, arr, img, err, mask):
 		'''
-		Function that returns flattened error-normalized residual array
+		Function that returns flattened error-normalized residual array for PSF fitting
+
+		Parameters
+		----------
+		arr : list
+			List of fit parameters.
+		img : numpy.ndarray
+			2D flux array.
+		err : numpy.ndarray
+			2D fluxerr array.
+		mask : numpy.ndarray
+			2D mask array.
+	 
+		Returns
+		-------
+		resid_comp : numpy.ndarray
+	   		Collapsed 1D array of residuals.
 		'''
 
 		model = arr[0] * self.psf_int
-		modelsum_bkg = np.ma.MaskedArray(model + arr[1], mask=mask)
-		resid = (img - modelsum_bkg) / err
+		model_bkg = np.ma.MaskedArray(model + arr[1], mask=mask)
+		resid = (img - model_bkg) / err
+		resid_comp = resid.compressed()
 
-		return resid.compressed()
+		return resid_comp
 
 
 	def model_eval(self, arr, mask):
 		'''
 		Function that evalutes the PSF model and returns the flux with and without background
+
+		Parameters
+		----------
+		arr : list
+			List of fit parameters.
+		mask : numpy.ndarray
+			2D mask array.
+	 
+		Returns
+		-------
+		model : numpy.ndarray
+	   		2D PSF model without background.
+	   	model_bkg : numpy.ndarray
+	   		2D PSF model with background.
 		'''
 
 		model = np.ma.MaskedArray(arr[0] * self.psf_int, mask=mask)
-		modelsum_bkg = model + arr[1]
+		model_bkg = model + arr[1]
 
-		return model, modelsum_bkg
+		return model, model_bkg
 
 
 	def master_plot(self):
@@ -672,6 +713,7 @@ class ifu_cube(object):
 		plt.savefig(outf, bbox_inches='tight')
 		plt.close()
 
+
 #============================================================================================================
 
 class slit_spectrum(object):
@@ -680,6 +722,19 @@ class slit_spectrum(object):
 	'''
 
 	def __init__(self, filename, suffix='', nod_subtract=False):
+		'''
+		Initiates slit spectrum object
+
+		Parameters
+	   	----------
+	   	filename : str
+	   		Path to file.
+	   	suffix : str; optional
+	   		Unique suffix to distinguish between different processing runs.
+	   	nod_subtract : bool; optional
+	   		Indicates whether mutual nod subtraction has been carried out.
+	   		Default is False.
+	   	'''
 
 		# Populate the slit_spectrum object with data and header information
 		self.filename = filename.split('/')[-1]
@@ -834,7 +889,7 @@ class slit_spectrum(object):
 
 	def PSF_phot(self):
 		'''
-		Carries out photometric extraction using empirical PSF fitting.
+		Carries out photometric extraction using empirical PSF fitting
 		'''
 
 		print('Starting PSF fitting...')
@@ -967,12 +1022,28 @@ class slit_spectrum(object):
 
 	def resid_eval(self, arr, col, err, mask):
 		'''
-		Function that returns flattened error-normalized residual array
+		Function that returns flattened error-normalized residual array for PSF fitting
+
+		Parameters
+		----------
+		arr : list
+			List of fit parameters.
+		col : numpy.ndarray
+			1D flux array.
+		err : numpy.ndarray
+			1D fluxerr array.
+		mask : numpy.ndarray
+			1D mask array.
+	 
+		Returns
+		-------
+		resid : numpy.ndarray
+	   		1D array of residuals.
 		'''
 
 		model = arr[0] * self.psf_int
-		modelsum_bkg = np.ma.MaskedArray(model + arr[1], mask=mask)
-		resid = (col - modelsum_bkg) / err
+		model_bkg = np.ma.MaskedArray(model + arr[1], mask=mask)
+		resid = (col - model_bkg) / err
 
 		return resid
 
@@ -980,12 +1051,26 @@ class slit_spectrum(object):
 	def model_eval(self, arr, mask):
 		'''
 		Function that evalutes the PSF model and returns the flux with and without background
+
+		Parameters
+		----------
+		arr : list
+			List of fit parameters.
+		mask : numpy.ndarray
+			1D mask array.
+	 
+		Returns
+		-------
+		model : numpy.ndarray
+	   		1D PSF model without background.
+	   	model_bkg : numpy.ndarray
+	   		1D PSF model with background.
 		'''
 
 		model = arr[0] * self.psf_int
-		modelsum_bkg = np.ma.MaskedArray(model + arr[1], mask=mask)
+		model_bkg = np.ma.MaskedArray(model + arr[1], mask=mask)
 
-		return model, modelsum_bkg
+		return model, model_bkg
 
 
 	def master_plot(self):
@@ -1015,6 +1100,7 @@ class slit_spectrum(object):
 		plt.savefig(outf)
 		plt.close()
 
+
 #============================================================================================================
 
 class spectrum(object):
@@ -1023,6 +1109,34 @@ class spectrum(object):
 	'''
 
 	def __init__(self, input_obj, flux_aper_bkg, flux_aper, fluxerr_aper, cent_x, cent_y, fwhm, bkg_per_pixel, bkg_aper, mask_aper, mask_close):
+		'''
+		Initiates spectrum object
+
+		Parameters
+	   	----------
+	    input_obj : obj
+	    	Object containing spectral extraction information and observation metadata.
+	    flux_aper_bkg : numpy.ndarray
+	      	Extracted flux with background.
+	    flux_aper : numpy.ndarray
+	    	Extracted flux with background subtracted.
+	    fluxerr_aper : numpy.ndarray
+	    	Flux uncertainty.
+		cent_x : numpy.ndarray
+			Measured target centroid x-positions.
+		cent_y : numpy.ndarray
+			Measured target centroid y-positions.
+		fwhm : numpy.ndarray
+			Measured FWHM of target.
+		bkg_per_pixel : numpy.ndarray
+			Background level per pixel.
+		bkg_aper : numpy.ndarray
+			Total background in aperture
+		mask_aper : numpy.ndarray
+			Flag of whether there are masked pixels within the extraction aperture.
+		mask_close : numpy.ndarray
+			Flag of whether there are masked pixels close to the target.
+		'''
 
 		# Extract relevant information from input_obj and inputs
 		self.filename = input_obj.filename
@@ -1074,6 +1188,9 @@ class params(object):
 	'''
 
 	def __init__(self):
+		'''
+		Initializes empty dictionaries of pipeline stage rules
+		'''
 
 		self.stage1_rules = {}
 		self.stage2_rules = {}
@@ -1083,7 +1200,7 @@ class params(object):
 					readnoise_correct, bkg_subtract, cube_align, stage1_suffix, stage2_suffix, stage3_suffix, extract_stage, extr_method, extr_suffix, extr_aper_rad,
 					bkg_aper_in, bkg_aper_out, window_width, pix_sig_clip, bkg_sig_clip, fix_centroid, save_cleaned, spec_bkg_sub, spec_sig_clip, spec_window_half, special_defringe):
 		'''
-		Add parameters. See run_jwstspec.py file for parameter definitions.
+		Adds parameters. See run_jwstspec.py file for parameter definitions.
 		'''
 
 		self.prog_id = prog_id
@@ -1129,7 +1246,7 @@ class params(object):
 
 	def sanity_check(self):
 		'''
-		Check to make sure parameter settings are reasonable and not conflicting
+		Checks to make sure parameter settings are reasonable and not conflicting
 		'''
 
 		# Define affix for different data types and custom destriping methods
@@ -1388,8 +1505,8 @@ def sort_spec_files(sci_files, bkg_files, params):
 
 	Parameters
 	----------
-	input_files : numpy.ndarray
-	   	List of input files.
+	sci_files, bkg_files : numpy.ndarray
+	   	List of science and background files.
 	params : obj
 		Pipeline run parameters object.
  
@@ -1510,7 +1627,7 @@ def spec_combine(group, resultsdir, spec_bkg_sub=True, special_defringe=False, s
 	----------
 	group : list
     	List of spectrum pickle files.
-	resultsdir : string
+	resultsdir : str
 		Directory for saving spectra and plots (usually same location as extracted spectra).
 	spec_bkg_sub : bool; optional
 		Choice for whether to utilize background-subtracted flux (True) or not (False).
@@ -1520,6 +1637,13 @@ def spec_combine(group, resultsdir, spec_bkg_sub=True, special_defringe=False, s
 		Threshold for sigma-clipping of each spectrum prior to combining.
 	window_half : int; optional
 		Half-width of the moving median filter window. Default is 10.
+
+	Returns
+	-------
+	wave_combine, flux_combine, fluxerr_combine : numpy.ndarray
+		Combined outlier-cleaned spectrum.
+	meta : dict
+		Dictionary containing relevant metadata for the observation.
 	'''
 
 	# Initialize lists for data
@@ -1547,6 +1671,7 @@ def spec_combine(group, resultsdir, spec_bkg_sub=True, special_defringe=False, s
 			meta = dict()
 			meta['program'] = spectrum.program
 			meta['obs'] = spectrum.obs
+			meta['bkgobs'] = spectrum.bkg_obs_numb
 			meta['visit'] = spectrum.visit
 			meta['grating'] = spectrum.grating
 			meta['detector'] = spectrum.detector
@@ -1641,6 +1766,35 @@ def spec_combine(group, resultsdir, spec_bkg_sub=True, special_defringe=False, s
 
 
 def spec_clean(x, y, yerr, mask, sig, window_half):
+	'''
+	Applies a moving median outlier filter to a 1D spectrum
+
+	Parameters
+	----------
+	x : numpy.ndarray
+    	Independent variable array.
+    y : numpy.ndarray
+    	Dependent variable array.
+    yerr : numpy.ndarray
+    	Uncertainty on dependent variable array.
+    mask : numpy.ndarray
+    	Existing mask for y.
+    sig : float
+    	Threshold for flagging outlier points.
+    window_half : int
+    	Half-width of the moving median filter window
+
+    Returns
+	-------
+	x : numpy.ndarray
+		Original independent variable array
+	mask_y : numpy.ndarray
+		Dependent variable array with outliers masked
+	mask_yerr : numpy.ndarray
+		Uncertainty on dependent variable array with outliers masked
+	mask : numpy.ndarray
+		Updated mask for mask_y with outliers flagged.
+	'''
 
 	# Mask outliers using moving median filter
 	for i in range(window_half,len(x)):
@@ -1648,8 +1802,8 @@ def spec_clean(x, y, yerr, mask, sig, window_half):
 			continue
 		else:
 			seg = np.ma.concatenate([y[i-window_half:i],y[i+1:i+window_half+1]])
-			med,std = np.ma.median(seg),np.ma.std(seg)
-			if abs(y[i]-med) > sig*std:
+			med, std = np.ma.median(seg), np.ma.std(seg)
+			if abs(y[i] - med) > sig * std:
 				mask[i] = 1
 
 	mask_y = np.ma.array(y, mask=mask)
@@ -1659,6 +1813,24 @@ def spec_clean(x, y, yerr, mask, sig, window_half):
 
 
 def spec_clip(x1, y1, yerr1, x2, y2, yerr2):
+	'''
+	Trims object spectra to the wavelength range of the stellar spectra and interpolates the stellar 
+	spectra to the wavelength grid of the object data
+
+	Parameters
+	----------
+	x1, y1, yerr1 : list
+    	List of object wavelength, flux, and fluxerr arrays.
+    x2, y2, yerr2 : list
+    	List of stellar wavelength, flux, and fluxerr arrays.
+
+    Returns
+	-------
+	x1, y1, yerr1 : list
+    	List of trimmed object wavelength, flux, and fluxerr arrays.
+    x2, y2, yerr2 : list
+    	List of interpolated stellar wavelength, flux, and fluxerr arrays.
+	'''
 
 	nspec = len(x1)
 	if nspec != len(x2):
@@ -1685,8 +1857,21 @@ def spec_clip(x1, y1, yerr1, x2, y2, yerr2):
 
 
 def spec_mask_manual(xgrp, ygrp, yerrgrp, maskgrp):
+	'''
+	An interactive tool to manually mask remaining outlier points in the spectra
 
-	# Scaling factor to make text file more friendly
+	Parameters
+	----------
+	xgrp, ygrp, yerrgrp, maskgrp : list
+		List of input wavelength, flux, fluxerr, and mask arrays.
+
+    Returns
+	-------
+	xgrp, ygrp, yerrgrp, maskgrp : list
+		List of outlier-corrected wavelength, flux, fluxerr, and mask arrays.
+	'''
+
+	# Scaling factor to make flux values more user-friendly
 	rescale = 1e12
 
 	print("Click+release to select masked points.")
@@ -1756,6 +1941,20 @@ def spec_mask_manual(xgrp, ygrp, yerrgrp, maskgrp):
 
 
 def spec_plot(x, y, yerr, resultsdir, meta, dither_grp):
+	'''
+	Plots the final combined spectrum alongside individual dither spectra
+
+	Parameters
+	----------
+	x, y, yerr : numpy.ndarray
+		Wavelength, flux, and fluxerr of the final combined spectrum.
+	resultsdir : str
+		Directory for saving spectra and plots (usually same location as extracted spectra).
+	meta : dict
+		Dictionary containing relevant metadata for the observation.
+	dither_grp : list
+		List of individual dither spectra.
+	'''
 
 	# Default output file for plot
 	append = ''
@@ -1770,7 +1969,7 @@ def spec_plot(x, y, yerr, resultsdir, meta, dither_grp):
 	fig = plt.figure(figsize=(15,5))
 	ax = fig.add_subplot(111)
 	unmasked = np.where(y.mask==False)
-	ax.errorbar(x[unmasked],y[unmasked],yerr=yerr[unmasked],fmt='k.',capsize=0,label='Combined',zorder=5)
+	ax.errorbar(x[unmasked], y[unmasked], yerr=yerr[unmasked], fmt='k.', capsize=0, label='Combined',zorder=5)
 	for i in range(len(dither_grp[0])):
 		fmt = colors[i % 6] + symbols[int(i // 6)]
 		unmasked = np.where(dither_grp[1][i].mask==False)
@@ -1793,10 +1992,23 @@ def spec_plot(x, y, yerr, resultsdir, meta, dither_grp):
 
 
 def spec_save(wave, flux, fluxerr, resultsdir, meta):
+	'''
+	Saves the final spectrum to a plain-text file
+
+	Parameters
+	----------
+	wave, flux, fluxerr : numpy.ndarray
+		Final spectrum.
+	resultsdir : str
+		Directory for saving spectra and plots (usually same location as extracted spectra).
+	meta : dict
+		Dictionary containing relevant metadata for the observation.
+	'''
 
 	# Scaling factor to make text file more friendly
 	rescale = 1e12
 
+	# Define output file with necessary appended tags
 	print(f'Spectrum saved!')
 	append = ''
 	if not meta['bkg_sub']:
@@ -1811,18 +2023,18 @@ def spec_save(wave, flux, fluxerr, resultsdir, meta):
 
 	# Populate header with metadata
 	header = f'''=====
-Object:   {meta['target']}
-Program:  {meta['program']}
-ObsNum:   {meta['obs']}
-Instr:    {meta['instrument']}
-Visit:    {meta['visit']}
-Grating:  {meta['grating']} 
-Detector: {meta['detector']}
-Bkg_sub:  {meta['bkg_sub']}
-jwst_ver: {meta['jwst_ver']}
-CRDS_cxt: {meta['crds_context']}
-Proc_date:{meta['date']}
-Extr_aper:{meta['extr_aper_rad']}
+Object:     {meta['target']}
+Program:    {meta['program']}
+ObsNum:     {meta['obs']}
+Instr:      {meta['instrument']}
+Visit:      {meta['visit']}
+Grating:    {meta['grating']} 
+Detector:   {meta['detector']}
+SpecBkgSub: {meta['bkg_sub']}
+jwst_ver:   {meta['jwst_ver']}
+CRDS_pmap:  {meta['crds_context']}
+ProcDate:   {meta['date']}
+ExtrAper:   {meta['extr_aper_rad']}
 =====
 Wavelength (um)\tFlux (uJy)\t Flux Error (uJy)
 ====='''
