@@ -894,6 +894,14 @@ class slit_spectrum(object):
 
 		print('Starting PSF fitting...')
 
+		# Establish extraction regions
+		self.aper_low = max(self.centr_int - self.extr_aper_rad, 0)
+		self.aper_high = min(self.centr_int + self.extr_aper_rad + 1, self.slit_length)
+		self.back_a1 = None
+		self.back_a2 = max(self.centr_int - self.bkg_aper_in + 1, 0)
+		self.back_b1 = min(self.centr_int + self.bkg_aper_in, self.slit_length)
+		self.back_b2 = None
+
 		# Carry out iterative PSF fitting with outlier flagging for every column one by one
 		flux = np.zeros(self.spec_length)
 		flux_bkg = np.zeros(self.spec_length)
@@ -959,7 +967,7 @@ class slit_spectrum(object):
 
 			# Calculate flux uncertainty using weighted error array with background contribution
 			aper_mask = np.ones(len(col)).astype('bool')
-			aper_mask[max(0,self.centr_int-box_width):rself.centr_int+box_width+1] = False
+			aper_mask[max(0,self.centr_int-box_width):self.centr_int+box_width+1] = False
 			weight_err = np.ma.MaskedArray(np.sqrt((model/np.max(model) * err)**2 + bkg_shot_noise**2), mask=aper_mask)
 
 			# Between the optimization flux uncertainty estimate and the weighted error, choose the larger one
@@ -1088,10 +1096,12 @@ class slit_spectrum(object):
 		ax.axvline(self.centroid,color='black',linestyle='--')
 		ax.axvline(self.aper_low,color='black',linestyle='-')
 		ax.axvline(self.aper_high-1,color='black',linestyle='-')
-		ax.axvline(self.back_a1,color='black',linestyle=':')
+		if self.back_a1 is not None:
+			ax.axvline(self.back_a1,color='black',linestyle=':')
 		ax.axvline(self.back_a2-1,color='black',linestyle=':')
 		ax.axvline(self.back_b1,color='black',linestyle=':')
-		ax.axvline(self.back_b2-1,color='black',linestyle=':')
+		if self.back_b2 is not None:
+			ax.axvline(self.back_b2-1,color='black',linestyle=':')
 		ax.tick_params(labelsize=12)
 		ax.set_xlim([0,self.slit_length])
 		ax.set_xlabel(f'{self.slit_direction} [px]',fontsize=14)
@@ -1671,7 +1681,6 @@ def spec_combine(group, resultsdir, spec_bkg_sub=True, special_defringe=False, s
 			meta = dict()
 			meta['program'] = spectrum.program
 			meta['obs'] = spectrum.obs
-			meta['bkgobs'] = spectrum.bkg_obs_numb
 			meta['visit'] = spectrum.visit
 			meta['grating'] = spectrum.grating
 			meta['detector'] = spectrum.detector

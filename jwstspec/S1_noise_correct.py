@@ -5,6 +5,7 @@ import jwst.pipeline.calwebb_spec2 as pipe
 import scipy.ndimage as nd
 import numpy as np
 import copy
+import os
 from . import aux
 
 def run(params):
@@ -40,21 +41,16 @@ def run(params):
 			vers = '2'
 
 		for i,fi in enumerate(input_files):
-			print(f'Destriping {fi.split("/")[-1]} ({i+1}/{nfiles})...')
-
-			# For NSClean, run the files through the first three steps of the calwebb_spec2 pipeline module and save outputs
+			# For NSClean, the calwebb_spec2 pipeline module will handle the readnoise correction, so
+			# only a simple name change is needed to distinguish the outputs
 			if params.readnoise_correct == 'nsclean':
-				# Get output directory and logger
-				outdir = f'{params.data_dir}{params.prog_id}/Obs{oo}/Stage1{params.stage1_suffix}/'			
-				log = aux.config_logger(outdir)
-
-				result = pipe.assign_wcs_step.AssignWcsStep.call(fi, configure_log=False)
-				if params.obs_type == 'ifu':
-					result = pipe.msaflagopen_step.MSAFlagOpenStep.call(result, configure_log=False)
-				result = pipe.nsclean_step.NSCleanStep.call(result, skip=False, save_results=True, output_dir=outdir, suffix='ratecorr0', configure_log=False)
+				cmd = f'scp {fi} {fi.replace('_rate',f'_ratecorr{vers}')}'
+				os.system(cmd)
 
 			# Otherwise, manually destripe each file
 			else:
+				print(f'Destriping {fi.split("/")[-1]} ({i+1}/{nfiles})...')
+
 				# Open rate file and deepcopy it to safely handle I/O
 				hdulist = fits.open(fi)
 				hdul = copy.deepcopy(hdulist)
@@ -94,7 +90,7 @@ def run(params):
 				# Remove noise model and save as new file
 				hdul['SCI',1].data = data - stripes
 				hdul['PRIMARY',1].header['HISTORY'] = f'Readnoise correction carried out with S1_noise_correct.py using {params.readnoise_correct} method'
-				hdul.writeto(fi.replace(f'_rate',f'_ratecorr{vers}'), overwrite=True)
+				hdul.writeto(fi.replace('_rate',f'_ratecorr{vers}'), overwrite=True)
 				hdul.close()
 
 	print('Stage 1 readnoise correction complete!')
