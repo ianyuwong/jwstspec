@@ -35,6 +35,8 @@ def run(params):
 		# Separate affix for different destriping methods
 		if params.readnoise_correct == 'nsclean':
 			vers = '0'
+		elif params.readnoise_correct == 'median':
+			vers = '00'
 		elif params.readnoise_correct == 'constant':
 			vers = '1' 
 		elif params.readnoise_correct == 'moving_median':
@@ -43,7 +45,7 @@ def run(params):
 		for i,fi in enumerate(input_files):
 			# For NSClean, the calwebb_spec2 pipeline module will handle the readnoise correction, so
 			# only a simple name change is needed to distinguish the outputs
-			if params.readnoise_correct == 'nsclean':
+			if params.readnoise_correct == 'nsclean' or params.readnoise_correct == 'median':
 				cmd = f'scp {fi} {fi.replace('_rate',f'_ratecorr{vers}')}'
 				os.system(cmd)
 

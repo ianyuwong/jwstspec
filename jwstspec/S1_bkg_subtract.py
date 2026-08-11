@@ -60,7 +60,7 @@ def run(params, run_stage1):
 		params.bkg_subtract = 'pixel'
 		params.vers = params.vers.replace('asn', 'pixel')
 			
-	if not run_stage1:
+	if not run_stage1 and ((nscifiles == 0) | (nbkgfiles == 0)):
 		return params
 
 	## Method 1: Subtract average background pixel-by-pixel for each science file

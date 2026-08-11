@@ -49,6 +49,8 @@ def run(params):
 				params.stage2_rules['cube_build'] = {'coord_system' : 'internal_cal'}
 	if params.instrument == 'nirspec' and params.readnoise_correct == 'nsclean':	# NSClean defaults
 		params.stage2_rules['clean_flicker_noise'] = {'skip' : False, 'fit_method' : 'fft', 'background_method' : None, 'n_sigma' : 5.0, 'mask_science_regions' : True}
+	if params.instrument == 'nirspec' and params.readnoise_correct == 'median':	# NSClean defaults
+		params.stage2_rules['clean_flicker_noise'] = {'skip' : False, 'fit_method' : 'median', 'fit_by_channel' : True, 'background_method' : None, 'n_sigma' : 3.0, 'mask_science_regions' : True}
 	if params.bkg_subtract == 'asn':
 		params.stage2_rules['bkg_subtract'] = {'skip' : False}		# Make sure pipeline runs the ASN background subtraction routine
 

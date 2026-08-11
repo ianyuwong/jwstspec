@@ -1266,6 +1266,8 @@ class params(object):
 		if self.instrument == 'nirspec' and hasattr(self, 'readnoise_correct'):
 			if self.readnoise_correct == 'nsclean':
 				vers += 'corr0'
+			elif self.readnoise_correct == 'median':
+				vers += 'corr00'
 			elif self.readnoise_correct == 'constant':
 				vers += 'corr1' 
 			elif self.readnoise_correct == 'moving_median':
@@ -1283,7 +1285,7 @@ class params(object):
 
 		# Check destriping method
 		if hasattr(self, 'readnoise_correct'):
-			if self.instrument == 'nirspec' and self.readnoise_correct not in [None, 'nsclean', 'constant', 'moving_median']:
+			if self.instrument == 'nirspec' and self.readnoise_correct not in [None, 'nsclean', 'median', 'constant', 'moving_median']:
 				raise ValueError(f'Destriping method {self.destriping} not recognized.')
 			elif self.instrument == 'miri' and self.readnoise_correct is not None:
 				raise ValueError(f'No destriping permitted for instrument = {self.instrument}')
@@ -1709,7 +1711,7 @@ def spec_combine(group, resultsdir, spec_bkg_sub=True, special_defringe=False, s
 		# Mask anomalously large flux uncertainties
 		select = np.where((flux!=0) & (fluxerr<np.nanpercentile(fluxerr,99)))
 		mederr, stderr = np.nanmedian(fluxerr[select]), np.nanstd(fluxerr[select])
-		mask[fluxerr > mederr + spec_sig_clip * stderr] = 1
+		mask[fluxerr > mederr + 20 * stderr] = 1
 		
 		flux = np.ma.array(flux, mask=mask)
 		fluxerr = np.ma.array(fluxerr, mask=mask)
@@ -1911,7 +1913,8 @@ def spec_mask_manual(xgrp, ygrp, yerrgrp, maskgrp):
 		for i in range(len(xgrp)):
 			fmt = colors[i % 6] + symbols[int(i // 6)]
 			unmasked = np.where(ygrp[i].mask==False)
-			plt.plot(xgrp[i][unmasked], ygrp[i][unmasked]*rescale, fmt, label=f'Dither {i+1}')
+			plt.errorbar(xgrp[i][unmasked], ygrp[i][unmasked]*rescale, yerr=yerrgrp[i][unmasked]*rescale, fmt=fmt, capsize=0, label=f'Dither {i+1}', zorder=5)
+	
 			xmin.append(min(xgrp[i][unmasked]))
 			xmax.append(max(xgrp[i][unmasked]))
 			ymin.append(min(ygrp[i][unmasked]*rescale))
